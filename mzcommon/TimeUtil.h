@@ -16,14 +16,11 @@
 #include <time.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <stdint.h>
 #endif
 
 enum { NSEC_PER_SEC = 1000000000 };
 
-#ifdef __APPLE__
-typedef unsigned long long uint64;
-typedef long long int64;
-#endif
 
 
 #ifdef _WIN32
@@ -40,20 +37,20 @@ class TimeStamp {
 public:
 
   /** 64-bit integer holding nanoseconds since the Unix epoch.
-   *  If this is equal to uint64(-1), then the TimeStamp is considered
+   *  If this is equal to uint64_t(-1), then the TimeStamp is considered
    *  invalid.
    */
-  uint64 nsec;
+  uint64_t nsec;
 
   /** Construct the zero TimeStamp. */
   TimeStamp(): nsec(0) {}
 
   /** Construct with given number of nanoseconds. */
-  explicit TimeStamp(uint64 n): nsec(n) {}
+  explicit TimeStamp(uint64_t n): nsec(n) {}
 
   /** Construct with seconds and nanoseconds. */
   TimeStamp(unsigned long s, unsigned long n) {
-    nsec = (uint64)s*(uint64)NSEC_PER_SEC + (uint64)n;
+    nsec = (uint64_t)s*(uint64_t)NSEC_PER_SEC + (uint64_t)n;
   }
   
   /** Add a Duration to a TimeStamp to get another TimeStamp. */
@@ -62,14 +59,14 @@ public:
   /** Subtrack a Duration from a TimeStamp to get another TimeStamp. */
   TimeStamp& operator-=(const Duration& d);
 
-  /** Return true if nsec == uint64(-1). */
+  /** Return true if nsec == uint64_t(-1). */
   bool valid() const {
-    return (nsec != (uint64)-1);
+    return (nsec != (uint64_t)-1);
   }
 
   /** Construct the invalid TimeStamp. */
   static TimeStamp invalid() { 
-    return TimeStamp((uint64)-1);
+    return TimeStamp((uint64_t)-1);
   }
 
   /** Return the modification time of the given file or directory.
@@ -85,7 +82,7 @@ public:
     }
     
     TimeStamp rval;
-    rval.nsec = (uint64)sb.st_mtime * (uint64)NSEC_PER_SEC;
+    rval.nsec = (uint64_t)sb.st_mtime * (uint64_t)NSEC_PER_SEC;
 
     return rval;
 
@@ -111,7 +108,7 @@ public:
   /** Construct from double storing seconds since the Unix epoch. */
   static TimeStamp fromDouble(double d) {
     if (d < 0) { return TimeStamp(); }
-    return TimeStamp((uint64) floor(d * double(NSEC_PER_SEC)));
+    return TimeStamp((uint64_t) floor(d * double(NSEC_PER_SEC)));
   }
 
   /** Convert to double storing seconds since the Unix
@@ -124,7 +121,7 @@ public:
    *  pthread_cond_timedwait and other functions). */
   static TimeStamp fromTimespec(const struct timespec& ts) {
     TimeStamp rval;
-    rval.nsec = (uint64)ts.tv_sec * (uint64)NSEC_PER_SEC +
+    rval.nsec = (uint64_t)ts.tv_sec * (uint64_t)NSEC_PER_SEC +
       ts.tv_nsec;
     return rval;
   }
@@ -133,8 +130,8 @@ public:
    *  pthread_cond_timedwait and other functions). */
   struct timespec toTimespec() const {
     struct timespec ts;
-    ts.tv_sec = nsec / (uint64)NSEC_PER_SEC;
-    ts.tv_nsec = nsec % (uint64)NSEC_PER_SEC;
+    ts.tv_sec = nsec / (uint64_t)NSEC_PER_SEC;
+    ts.tv_nsec = nsec % (uint64_t)NSEC_PER_SEC;
     return ts;
   }
 
@@ -142,8 +139,8 @@ public:
    *  select and other functions). */
   static TimeStamp fromTimeval(const struct timeval& tv) {
     TimeStamp rval;
-    rval.nsec = (uint64)tv.tv_sec * (uint64)NSEC_PER_SEC +
-      (uint64)tv.tv_usec * (uint64)1000;
+    rval.nsec = (uint64_t)tv.tv_sec * (uint64_t)NSEC_PER_SEC +
+      (uint64_t)tv.tv_usec * (uint64_t)1000;
     return rval;
   }
 
@@ -151,8 +148,8 @@ public:
    *  select and other functions). */
   struct timeval toTimeval() const {
     struct timeval rval;
-    rval.tv_sec = nsec / (uint64)NSEC_PER_SEC;
-    rval.tv_usec = (nsec % (uint64)NSEC_PER_SEC) / 1000;
+    rval.tv_sec = nsec / (uint64_t)NSEC_PER_SEC;
+    rval.tv_usec = (nsec % (uint64_t)NSEC_PER_SEC) / 1000;
     return rval;
   }
 
@@ -165,13 +162,13 @@ class Duration {
 public:
 
   /** Signed 64-bit integer representing number of nanoseconds. */
-  int64 nsec;
+  int64_t nsec;
 
   /** Construct a zero duration. */
   Duration(): nsec(0) {}
 
   /** Construct with given number of nanoseconds. */
-  explicit Duration(int64 n): nsec(n) {}
+  explicit Duration(int64_t n): nsec(n) {}
 
   /** Cast to void in order to allow boolean checking of non-zero
    *  durations. */
@@ -181,7 +178,7 @@ public:
 
   /** Construct from seconds and nanoseconds. */
   Duration(long s, long n) {
-    nsec = (int64)s*(int64)NSEC_PER_SEC + (int64)n;
+    nsec = (int64_t)s*(int64_t)NSEC_PER_SEC + (int64_t)n;
   }
 
   /** Addition-assignment. */
@@ -203,7 +200,7 @@ public:
    *  select and other functions). */
   static Duration fromTimeval(const struct timeval& tv) {
     Duration rval;
-    rval.nsec = (int64)tv.tv_sec*(int64)NSEC_PER_SEC + (int64)tv.tv_usec * (int64)1000;
+    rval.nsec = (int64_t)tv.tv_sec*(int64_t)NSEC_PER_SEC + (int64_t)tv.tv_usec * (int64_t)1000;
     return rval;
   }
 
@@ -211,8 +208,8 @@ public:
    *  functions). */
   struct timeval toTimeval() const {
     struct timeval tv;
-    tv.tv_sec = nsec / (int64)NSEC_PER_SEC;
-    tv.tv_usec = (nsec % (int64)NSEC_PER_SEC) / (int64)1000;
+    tv.tv_sec = nsec / (int64_t)NSEC_PER_SEC;
+    tv.tv_usec = (nsec % (int64_t)NSEC_PER_SEC) / (int64_t)1000;
     return tv;
   }
 
@@ -221,14 +218,14 @@ public:
    *  pthread_cond_timedwait and other functions). */
   struct timespec toTimespec() const {
     struct timespec ts;
-    ts.tv_sec = nsec / (int64)NSEC_PER_SEC;
-    ts.tv_nsec = nsec % (int64)NSEC_PER_SEC;
+    ts.tv_sec = nsec / (int64_t)NSEC_PER_SEC;
+    ts.tv_nsec = nsec % (int64_t)NSEC_PER_SEC;
     return ts;
   }
 
   /** Construct from double storing seconds. */
   static Duration fromDouble(double d) {
-    return Duration((int64) trunc(d * double(NSEC_PER_SEC)));
+    return Duration((int64_t) trunc(d * double(NSEC_PER_SEC)));
   }
 
   /** Convert to double storing seconds. */
@@ -322,28 +319,28 @@ inline Duration operator*(float s, const Duration& d) {
  *  Multiply a Duration by signed integer. 
  */
 inline Duration operator*(int s, const Duration& d) {
-  return Duration(d.nsec * int64(s));
+  return Duration(d.nsec * int64_t(s));
 }
 
 /** @relates Duration
  *  Multiply a Duration by signed integer. 
  */
 inline Duration operator*(const Duration& d, int s) {
-  return Duration(d.nsec * int64(s));
+  return Duration(d.nsec * int64_t(s));
 }
 
 /** @relates Duration
  *  Multiply a Duration by unsigned integer. 
  */
 inline Duration operator*(unsigned int s, const Duration& d) {
-  return Duration(d.nsec * int64(s));
+  return Duration(d.nsec * int64_t(s));
 }
 
 /** @relates Duration
  *  Multiply a Duration by unsigned integer. 
  */
 inline Duration operator*(const Duration& d, unsigned int s) {
-  return Duration(d.nsec * int64(s));
+  return Duration(d.nsec * int64_t(s));
 }
 
 /** @relates Duration
@@ -475,7 +472,7 @@ inline bool operator!=(const Duration& d1, const Duration& d2) {
 /** @relates Duration
  *  Integer division of two durations.
  */
-inline int64 operator/(const Duration& d1, const Duration& d2) {
+inline int64_t operator/(const Duration& d1, const Duration& d2) {
   return d1.nsec / d2.nsec;
 }
 
