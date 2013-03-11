@@ -70,8 +70,8 @@ public:
 
     mode[0] = HuboPlus::IK_MODE_SUPPORT;
     mode[1] = HuboPlus::IK_MODE_WORLD;
-    mode[2] = HuboPlus::IK_MODE_FIXED;
-    mode[3] = HuboPlus::IK_MODE_FIXED;
+    mode[2] = HuboPlus::IK_MODE_FREE;
+    mode[3] = HuboPlus::IK_MODE_FREE;
 
     resetAll();
 
@@ -155,7 +155,7 @@ public:
 
     bool ok = hplus.comIK( state, desiredCom,
                            desired, mode, HuboPlus::noGlobalIK(), xforms,
-                           8, 0 );
+                           0, 0 );
 
 
     kbody.transforms(state.jvalues, xforms);
