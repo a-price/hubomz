@@ -45,3 +45,4 @@ Now, you can run the software, for instance:
    cd /path/to/hubomz/build
    ./walkdemo ../myhubo.kinbody.xml
 
+
