@@ -9,6 +9,7 @@
 #include <mzcommon/mersenne.h>
 
 using namespace fakerave;
+using namespace HK;
 
 template <class Tval, class Talloc>
 std::ostream& operator<<(std::ostream& ostr, 

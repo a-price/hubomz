@@ -34,7 +34,6 @@ namespace fakerave {
   typedef std::vector<vec4> Vec4Array;
 
   typedef Eigen::MatrixXd MatX;
-  typedef Eigen::Matrix<double, 6, 1> Vector6d;
 
   template <class Derived>
   inline bool isVecOfLength(const Eigen::MatrixBase<Derived>& m, int n) {
