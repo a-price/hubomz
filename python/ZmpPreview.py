@@ -16,7 +16,7 @@
 import numpy as np
 import scipy
 import scipy.linalg
-
+import sys
 
 class ZmpPreview:
 
@@ -35,7 +35,8 @@ class ZmpPreview:
                  Qdpos=0, 
                  Qdvel=0, 
                  Qdaccel=0,
-                 g=9.8):
+                 g=9.8, 
+                 debug=False):
 
         """Initialize this ZmpPreview object. Parameters:
 
@@ -50,6 +51,8 @@ class ZmpPreview:
            - g: acceleration due to gravity, m/s^2
 
         See the papers for descriptions of the penalties."""
+
+        self.debug = debug
 
         T = timestep
         h = height
@@ -73,6 +76,7 @@ class ZmpPreview:
 
         QQ = np.diag( [Qe, Qdpos, Qdvel, Qdaccel] )
 
+
         try:
             PP = scipy.linalg.solve_discrete_are(AA, BB, QQ, RR)
         except:
@@ -93,7 +97,9 @@ class ZmpPreview:
             if not converged:
                 raise Exception('DARE iterative solver failed to converge!')
 
-        SS = np.linalg.inv(RR + BB.T*PP*BB)
+
+
+        SS = 1.0/(RR + BB.T*PP*BB)[0,0]
 
         KK = SS*BB.T*PP*AA
         Ke = KK[0,0]
@@ -101,6 +107,7 @@ class ZmpPreview:
 
         Ac = AA - BB*KK
         XX = -Ac.T * PP * np.matrix([[1,0,0,0]]).T
+
 
         G = np.zeros(nl)
         G[0] = -Ke
@@ -110,6 +117,19 @@ class ZmpPreview:
             XX = Ac.T * XX
 
         Ks = Ke
+
+        if (self.debug):
+            print "AA = \n", AA
+            print "BB = \n", BB
+            print "QQ = \n", QQ
+            print "RR = \n", RR
+            print "XX=\n", XX
+            print "Ks=",preview.Ks
+            print "Kx=",preview.Kx
+            print "G(start) =", G[:4]
+            print "G(end) = ", G[-4:]
+            print "G.sum() = ", G.sum()
+            print "G size = ", len(G)
 
         self.A = A
         self.B = B
@@ -145,11 +165,11 @@ class ZmpPreview:
         # extract future zmp trajectory
         zmpref = np.array(zmpref).flatten()
         nref = len(zmpref)
-        if nref < self.nl+1:
-            npad = self.nl+1 - nref
-            zrng = np.hstack(( zmpref[1:], np.ones(npad)*zmpref[-1] ) )
+        if nref < self.nl:
+            npad = self.nl - nref
+            zrng = np.hstack(( zmpref[0:], np.ones(npad)*zmpref[-1] ) )
         else:
-            zrng = zmpref[1:self.nl+1]
+            zrng = zmpref[0:self.nl]
 
         # get state
         X, e = stateErr
@@ -157,10 +177,20 @@ class ZmpPreview:
         # get control
         u = -self.Ks*e - self.Kx*X - np.dot(self.G, zrng)
 
+
         # update state & compute ZMP
         Xnew = self.A*X + self.B*u
         zmp = self.C*Xnew
-        enew = e + zmp - zrng[0]
+        enew = e + zmp - zmpref[0]
+
+        if self.debug:
+            print "zrng.sum() = ", zrng.sum()
+            print "u = " , u 
+            print "X = ", Xnew.T
+            print "zmp = ", zmp
+            print "zmpref(0) = ",zmpref[0] 
+            print "e =", enew
+            print
 
         # return new state, ZMP, and control
         return (Xnew, enew), zmp, u
@@ -183,7 +213,7 @@ if __name__ == "__main__":
     h = 0.5
 
     # Number of lookahead steps
-    nl = int(2.5/T)
+    nl = int(round(2.5/T))
 
     # Create our preview controller
     preview = ZmpPreview(T, h, nl, R=1e-5)
@@ -193,7 +223,7 @@ if __name__ == "__main__":
 
     # Compute 10 phases
     numPhases = 10
-    phaseTicks = int(1.0/T)
+    phaseTicks = int(round(1.0/T))
     totalTicks = phaseTicks * numPhases
 
     # Move side/side (Y) by 0.08m each step
@@ -242,14 +272,14 @@ if __name__ == "__main__":
 
     # Run through our array
 
-    for d in range(2):
+    for d in [1]:
         zmp = 0
         for i in range(totalTicks):
             coms[d,i] = stateErr[d][0][0]
             zmps[d,i] = zmp
             stateErr[d], zmp, u = preview.updateStateErr(stateErr[d], zref[d,i:])
 
-    for d in range(2):
+    for d in [1]:
         plt.subplot(2,1,d+1)
         plt.plot(time, zref[d,:], label='ZMP Reference')
         plt.plot(time, coms[d,:], label='COM pos')
