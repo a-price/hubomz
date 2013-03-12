@@ -69,7 +69,7 @@ class ZmpPreview:
 
         BB = np.vstack( ( C*B, B ) )
 
-        RR = np.matrix([[R]])
+        RR = R
 
         QQ = np.diag( [Qe, Qdpos, Qdvel, Qdaccel] )
 
@@ -82,10 +82,11 @@ class ZmpPreview:
                 AX = AA.T * PP
                 AXA = AX * AA
                 AXB = AX * BB
-                PPnew = AXA - AXB*np.linalg.solve(R+BB.T*PP*BB, AXB.T) + QQ
-                delta = np.linalg.norm(PPnew-PP)
+                M = (R+BB.T*PP*BB)[0,0]
+                PPnew = AXA - AXB*(1.0/M)*AXB.T + QQ
+                relerr = np.linalg.norm(PPnew-PP) / np.linalg.norm(PPnew)
                 PP = PPnew
-                if delta < 1e-5:
+                if relerr < 1e-10:
                     print 'DARE solver converged after {} iterations.'.format(i)
                     converged = True
                     break
@@ -185,7 +186,7 @@ if __name__ == "__main__":
     nl = int(2.5/T)
 
     # Create our preview controller
-    preview = ZmpPreview(T, h, nl, R=1e-15)
+    preview = ZmpPreview(T, h, nl, R=1e-5)
 
     ##################################################
     # Now set up a simple forward/backward trajectory
