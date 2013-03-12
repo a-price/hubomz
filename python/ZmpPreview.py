@@ -145,11 +145,11 @@ class ZmpPreview:
         # extract future zmp trajectory
         zmpref = np.array(zmpref).flatten()
         nref = len(zmpref)
-        if nref < self.nl:
-            npad = self.nl - nref
-            zrng = np.hstack(( zmpref, np.ones(npad)*zmpref[-1] ) )
+        if nref < self.nl+1:
+            npad = self.nl+1 - nref
+            zrng = np.hstack(( zmpref[1:], np.ones(npad)*zmpref[-1] ) )
         else:
-            zrng = zmpref[:self.nl]
+            zrng = zmpref[1:self.nl+1]
 
         # get state
         X, e = stateErr
@@ -241,11 +241,13 @@ if __name__ == "__main__":
                  preview.initStateErr() ]
 
     # Run through our array
+
     for d in range(2):
+        zmp = 0
         for i in range(totalTicks):
-            stateErr[d], zmp, u = preview.updateStateErr(stateErr[d], zref[d,i:])
             coms[d,i] = stateErr[d][0][0]
             zmps[d,i] = zmp
+            stateErr[d], zmp, u = preview.updateStateErr(stateErr[d], zref[d,i:])
 
     for d in range(2):
         plt.subplot(2,1,d+1)
