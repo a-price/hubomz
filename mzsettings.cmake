@@ -50,3 +50,4 @@ macro(add_gui_app name)
   endif()
 endmacro(add_gui_app)
 
+include_directories(${PROJECT_SOURCE_DIR})

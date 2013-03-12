@@ -1,11 +1,13 @@
 # CMakeLists.txt for hubomz/src
 
-include_directories(${PROJECT_SOURCE_DIR})
 
 add_library( hubomz fakerave.cpp fakerave_parse.cpp HuboPlus.cpp HuboKin.cpp )
 
 add_executable( testkin testkin.cpp )
 target_link_libraries( testkin hubomz mzcommon ${OPENGL_LIBRARY} expat )
+
+add_executable( testzmp testzmp.cpp )
+target_link_libraries( testzmp hubomz mzcommon ${OPENGL_LIBRARY} expat )
 
 add_executable( testik testik.cpp )
 target_link_libraries( testik hubomz mzcommon ${OPENGL_LIBRARY} expat )

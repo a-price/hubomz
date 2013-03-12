@@ -16,7 +16,8 @@ To build the software, you will need these libraries:
  
   - GLUT
   - eigen3
-  - qt4 (optional)
+  - expat
+  - qt4 (optional, but required for calibration GUI)
 
 You must install cmake to build the software as well.  To build:
 

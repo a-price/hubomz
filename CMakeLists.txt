@@ -8,3 +8,7 @@ include(mzsettings.cmake)
 add_subdirectory(mzcommon)
 add_subdirectory(src)
 
+if (QT_FOUND)
+add_subdirectory(calibrate)
+endif()
+
