@@ -1,6 +1,4 @@
-
 include_directories(${QT_INCLUDE_DIR})
-include_directories(../src)
 
 qt4_wrap_ui(calib_ui_headers CalibMainWindow.ui) 
 qt4_wrap_cpp(calib_headers CalibMainWindow.h HuboWidget.h)

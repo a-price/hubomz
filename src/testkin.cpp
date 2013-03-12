@@ -38,7 +38,7 @@ Vector6d getOffset(const HuboKin& hkin, int part, int side) {
 }
 
 Vector6d mirror(const HuboKin& hkin, int part, int side, Vector6d angles) {
-  if (side == HuboKin::RIGHT) {
+  if (side == HuboKin::SIDE_RIGHT) {
     return angles;
   } else {
     if (part == 0) {
@@ -136,7 +136,7 @@ int main(int argc, char** argv) {
       for (int iter=0; iter<niter; ++iter) {
 
         if (side == 0) {
-          Matrix62d limits = getLimits(hkin, part, HuboKin::RIGHT);
+          Matrix62d limits = getLimits(hkin, part, HuboKin::SIDE_RIGHT);
           tdata[tidx].qfk[iter] = randAngles(limits);
         } else {
           tdata[tidx].qfk[iter] = mirror(hkin, part, side, tdata[opptidx].qfk[iter]);
@@ -215,7 +215,7 @@ int main(int argc, char** argv) {
 
       for (int side=0; side<2; ++side) {
 
-        const char* sidename = ( (side == HuboKin::RIGHT) ? "right" : " left" );
+        const char* sidename = ( (side == HuboKin::SIDE_RIGHT) ? "right" : " left" );
 
         int tidx = 2*part + side;
 

@@ -55,6 +55,8 @@ public:
   fakerave::vec3 defaultComPos;
   fakerave::quat footRot;
 
+  fakerave::IndexArray huboJointOrder;
+
   size_t DEFAULT_COM_ITER;
   fakerave::real DEFAULT_COM_PTOL;
   

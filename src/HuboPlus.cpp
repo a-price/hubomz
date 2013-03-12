@@ -261,6 +261,32 @@ HuboPlus::HuboPlus(const std::string& filename):
   t0 = xforms[rfoot].transformInv(vec3(0, -jy, -jz));
   kbody.manipulators[1].xform = Transform3(t0);
 
+
+  const char* hnames[42] = {
+    "RHY", "RHR", "RHP", "RKP", "RAP", "RAR",
+    "LHY", "LHR", "LHP", "LKP", "LAP", "LAR",
+    "RSP", "RSR", "RSY", "REP", "RWY", 0, "RWP",
+    "LSP", "LSR", "LSY", "LEP", "LWY", 0, "LWP",
+    0, 0, 0,
+    "HPY",
+    0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0,
+  };
+
+  for (size_t i=0; i<42; ++i) {
+    size_t ji = size_t(-1);
+    if  (hnames[i]) {
+      ji = kbody.lookupJoint(hnames[i]);
+      if (ji == size_t(-1)) {
+	std::cerr << "Error: joint " << hnames[i] << " not found!\n";
+      }
+      assert(ji != size_t(-1));
+    }
+    huboJointOrder.push_back(ji);
+  }
+
+
+
 }
 
 
