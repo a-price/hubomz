@@ -106,7 +106,7 @@ Vector6d HuboKin::mirrorAngles(const Vector6d& orig,
 }
 
 Matrix62d HuboKin::KinConstants::getArmLimits(int side) const {
-  if (side == RIGHT) {
+  if (side == SIDE_RIGHT) {
     return arm_limits;
   } else {
     return HuboKin::mirrorLimits(arm_limits, arm_mirror);
@@ -114,7 +114,7 @@ Matrix62d HuboKin::KinConstants::getArmLimits(int side) const {
 }
 
 Matrix62d HuboKin::KinConstants::getLegLimits(int side) const {
-  if (side == RIGHT) {
+  if (side == SIDE_RIGHT) {
     return leg_limits;
   } else {
     return HuboKin::mirrorLimits(leg_limits, leg_mirror);
@@ -122,7 +122,7 @@ Matrix62d HuboKin::KinConstants::getLegLimits(int side) const {
 }
 
 Vector6d HuboKin::KinConstants::getArmOffset(int side) const {
-  if (side == RIGHT) {
+  if (side == SIDE_RIGHT) {
     return arm_offset;
   } else {
     return HuboKin::mirrorAngles(arm_offset, arm_mirror);
@@ -130,7 +130,7 @@ Vector6d HuboKin::KinConstants::getArmOffset(int side) const {
 }
 
 Vector6d HuboKin::KinConstants::getLegOffset(int side) const {
-  if (side == RIGHT) {
+  if (side == SIDE_RIGHT) {
     return leg_offset;
   } else {
     return HuboKin::mirrorAngles(leg_offset, leg_mirror);
@@ -182,7 +182,7 @@ void HuboKin::armFK(Isometry3d &B, const Vector6d &q, int side,
   const double& l2 = kc.arm_l2;
   const double& l3 = kc.arm_l3;
   const double& l4 = kc.arm_l4;
-  const Matrix62d limits = kc.getArmLimits(side);
+  //const Matrix62d limits = kc.getArmLimits(side);
   const Vector6d offset = kc.getArmOffset(side);
 
 #endif
@@ -193,7 +193,7 @@ void HuboKin::armFK(Isometry3d &B, const Vector6d &q, int side,
   r <<       0,       0,       0,       0,       0,      l4;
   d <<       0,       0,     -l2,       0,     -l3,       0;
     
-  if (side == RIGHT) {
+  if (side == SIDE_RIGHT) {
     neck(0,0) = 1; neck(0,1) =  0; neck(0,2) = 0; neck(0,3) =   0;
     neck(1,0) = 0; neck(1,1) =  0; neck(1,2) = 1; neck(1,3) = -l1;
     neck(2,0) = 0; neck(2,1) = -1; neck(2,2) = 0; neck(2,3) =   0;
@@ -297,7 +297,7 @@ void HuboKin::armIK(Vector6d &q, const Isometry3d& B, const Vector6d& qPrev, int
 #endif
 
     
-  if (side == RIGHT) {
+  if (side == SIDE_RIGHT) {
     // Transformation from Neck frame to right shoulder pitch frame
     neck(0,0) = 1; neck(0,1) =  0; neck(0,2) = 0; neck(0,3) =   0;
     neck(1,0) = 0; neck(1,1) =  0; neck(1,2) = 1; neck(1,3) = -l1;
@@ -515,7 +515,7 @@ void HuboKin::armIK(Vector6d &q, const Isometry3d& B, const Vector6d& qPrev, int
   // Set to offset
   for( int j=0; j<8; j++) {
     for (int i = 0; i < 6; i++) {
-      if (side==RIGHT) {
+      if (side==SIDE_RIGHT) {
         qAll(i,j) = wrapToPi(qAll(i,j) + offset(i));
       } else {
         qAll(i,j) = wrapToPi(qAll(i,j) + offset(i));
@@ -630,7 +630,7 @@ void HuboKin::legFK(Isometry3d &B, const Vector6d &q, int side) const {
   const double& l4 = kc.leg_l4;
   const double& l5 = kc.leg_l5;
   const double& l6 = kc.leg_l6;
-  const Matrix62d limits = kc.getLegLimits(side);
+  //const Matrix62d limits = kc.getLegLimits(side);
   const Vector6d offset = kc.getLegOffset(side);
 
 #endif
@@ -648,7 +648,7 @@ void HuboKin::legFK(Isometry3d &B, const Vector6d &q, int side) const {
   neck(2,0) = 0; neck(2,1) =  0; neck(2,2) = 1; neck(2,3) = -l1;
   neck(3,0) = 0; neck(3,1) =  0; neck(3,2) = 0; neck(3,3) =   1;
     
-  if (side == RIGHT) {
+  if (side == SIDE_RIGHT) {
     // Transformation from Waist frame to right hip yaw frame
     waist(0,0) = 0; waist(0,1) = -1; waist(0,2) = 0; waist(0,3) =   0;
     waist(1,0) = 1; waist(1,1) =  0; waist(1,2) = 0; waist(1,3) = -l2;
@@ -743,7 +743,7 @@ void HuboKin::legIK(Vector6d &q, const Isometry3d& B, const Vector6d& qPrev, int
   neck(2,0) = 0; neck(2,1) =  0; neck(2,2) = 1; neck(2,3) = -l1;
   neck(3,0) = 0; neck(3,1) =  0; neck(3,2) = 0; neck(3,3) =   1;
     
-  if (side == RIGHT) {
+  if (side == SIDE_RIGHT) {
     // Transformation from Waist frame to right hip yaw frame
     waist(0,0) = 0; waist(0,1) = -1; waist(0,2) = 0; waist(0,3) =   0;
     waist(1,0) = 1; waist(1,1) =  0; waist(1,2) = 0; waist(1,3) = -l2;
@@ -847,7 +847,7 @@ void HuboKin::legIK(Vector6d &q, const Isometry3d& B, const Vector6d& qPrev, int
 
   // Set to offset
   for (int i = 0; i < 6; i++) {
-    if (side==RIGHT) {
+    if (side==SIDE_RIGHT) {
       q(i) = wrapToPi(q(i) + offset(i));
     } else {
       q(i) = wrapToPi(q(i) + offset(i));

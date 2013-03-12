@@ -40,14 +40,14 @@ int main(int argc, char** argv) {
 
   IndexArray jidx;
 
-  size_t LSP = findJoint(kbody, jidx, "LSP");
-  size_t HPY = findJoint(kbody, jidx, "HPY");
-  size_t LHY = findJoint(kbody, jidx, "LHY");
-  size_t LHR = findJoint(kbody, jidx, "LHR");
-  size_t LHP = findJoint(kbody, jidx, "LHP");
-  size_t LKP = findJoint(kbody, jidx, "LKP");
-  size_t LAP = findJoint(kbody, jidx, "LAP");
-  size_t LAR = findJoint(kbody, jidx, "LAR");
+  size_t pLSP = findJoint(kbody, jidx, "LSP");
+  size_t pHPY = findJoint(kbody, jidx, "HPY");
+  size_t pLHY = findJoint(kbody, jidx, "LHY");
+  size_t pLHR = findJoint(kbody, jidx, "LHR");
+  size_t pLHP = findJoint(kbody, jidx, "LHP");
+  size_t pLKP = findJoint(kbody, jidx, "LKP");
+  size_t pLAP = findJoint(kbody, jidx, "LAP");
+  size_t pLAR = findJoint(kbody, jidx, "LAR");
 
   Vec3Array jpos(kbody.joints.size());
 
@@ -59,28 +59,28 @@ int main(int argc, char** argv) {
   vec3 fpos = kbody.manipulatorFK(xforms, 0).translation();
   std::cout << "fpos = " << fpos << "\n\n";
 
-  std::cout << "l1 = " << jpos[LSP].z() - jpos[HPY].z() << "\n";
+  std::cout << "l1 = " << jpos[pLSP].z() - jpos[pHPY].z() << "\n";
   std::cout << "kc.leg_l1 = " << kc.leg_l1 << "\n\n";
 
-  std::cout << "l2 = " << jpos[LHY].y() << "\n";
-  std::cout << "l2 = " << jpos[LHR].y() << "\n";
-  std::cout << "l2 = " << jpos[LAR].y() << "\n";
+  std::cout << "l2 = " << jpos[pLHY].y() << "\n";
+  std::cout << "l2 = " << jpos[pLHR].y() << "\n";
+  std::cout << "l2 = " << jpos[pLAR].y() << "\n";
   std::cout << "kc.leg_l2 = " << kc.leg_l2 << "\n\n";
 
-  std::cout << "l3 = " << jpos[HPY].z() - jpos[LHR].z() << "\n";
-  std::cout << "l3 = " << jpos[HPY].z() - jpos[LHP].z() << "\n";
+  std::cout << "l3 = " << jpos[pHPY].z() - jpos[pLHR].z() << "\n";
+  std::cout << "l3 = " << jpos[pHPY].z() - jpos[pLHP].z() << "\n";
   std::cout << "kc.leg_l3 = " << kc.leg_l3 << "\n\n";
 
-  std::cout << "l4 = " << jpos[LHP].z() - jpos[LKP].z() << "\n";
-  std::cout << "l4 = " << jpos[LHR].z() - jpos[LKP].z() << "\n";
+  std::cout << "l4 = " << jpos[pLHP].z() - jpos[pLKP].z() << "\n";
+  std::cout << "l4 = " << jpos[pLHR].z() - jpos[pLKP].z() << "\n";
   std::cout << "kc.leg_l4 = " << kc.leg_l4 << "\n\n";
 
-  std::cout << "l5 = " << jpos[LKP].z() - jpos[LAP].z() << "\n";
-  std::cout << "l5 = " << jpos[LKP].z() - jpos[LAR].z() << "\n";
+  std::cout << "l5 = " << jpos[pLKP].z() - jpos[pLAP].z() << "\n";
+  std::cout << "l5 = " << jpos[pLKP].z() - jpos[pLAR].z() << "\n";
   std::cout << "kc.leg_l5 = " << kc.leg_l5 << "\n\n";
 
-  std::cout << "l6 = " << jpos[LAP].z() - fpos.z() << "\n";
-  std::cout << "l6 = " << jpos[LAR].z() - fpos.z() << "\n";
+  std::cout << "l6 = " << jpos[pLAP].z() - fpos.z() << "\n";
+  std::cout << "l6 = " << jpos[pLAR].z() - fpos.z() << "\n";
   std::cout << "kc.leg_l6 = " << kc.leg_l6 << "\n\n";
 
   size_t lfoot = kbody.lookupBody("Body_LAR");
@@ -103,7 +103,7 @@ int main(int argc, char** argv) {
   Vector6d qfk;
   qfk.setZero();
 
-  hkin.legFK(B, qfk, HuboKin::LEFT);
+  hkin.legFK(B, qfk, HuboKin::SIDE_LEFT);
   std::cout << "legFK from zero =\n" << B.matrix() << "\n\n";
 
   B(0, 3) = 0.04;
@@ -111,11 +111,11 @@ int main(int argc, char** argv) {
   std::cout << "input to legIK =\n" << B.matrix() << "\n\n";
 
   Vector6d qik;
-  hkin.legIK(qik, B, qfk, HuboKin::LEFT);
+  hkin.legIK(qik, B, qfk, HuboKin::SIDE_LEFT);
 
   std::cout << "qik = " << qik.transpose() << "\n\n";
 
-  hkin.legFK(B, qik, HuboKin::LEFT);
+  hkin.legFK(B, qik, HuboKin::SIDE_LEFT);
   std::cout << "legFK from qik =\n" << B.matrix() << "\n\n";
 
   mat2stdvec(qik, jvalues, kbody.manipulators[0].jointIndices);

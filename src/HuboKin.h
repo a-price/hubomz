@@ -21,8 +21,8 @@ namespace HK {
   public:
 
     enum {
-      RIGHT = 0,
-      LEFT = 1
+      SIDE_RIGHT = 0,
+      SIDE_LEFT = 1
     };
 
     struct KinConstants {

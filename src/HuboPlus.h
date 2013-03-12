@@ -9,10 +9,12 @@
 #include "fakerave.h"
 #include "HuboKin.h"
 
-class HuboPlus {
-public:
-  
+#ifndef __APPLE__
+#include <hubo.h>
+#endif
 
+class HuboPlus {
+public:  
 
   enum ManipIndex {
     MANIP_L_FOOT,

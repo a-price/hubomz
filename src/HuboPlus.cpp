@@ -297,7 +297,7 @@ bool HuboPlus::manipIK(size_t mi,
     Vector6d qprev, q;
     stdvec2mat(jvalues, qprev, jidx);
     
-    int side = (mi == MANIP_L_FOOT ? HuboKin::LEFT : HuboKin::RIGHT);
+    int side = (mi == MANIP_L_FOOT ? HuboKin::SIDE_LEFT : HuboKin::SIDE_RIGHT);
     
     hkin.legIK(q, B, qprev, side);
 

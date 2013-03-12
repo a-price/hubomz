@@ -8,7 +8,7 @@ int main(int argc, char** argv) {
   double T = 1.0/ctrlFreq;
   double h = 0.5;
   size_t nl = (size_t)round(2.5/T);
-  double R = 1e-5;
+  double R = 1e-9;
  
   ZmpPreview preview(T, h, nl, R);
 
