@@ -95,7 +95,7 @@ public:
     PP.setIdentity();
     bool converged = false;
     
-    for (size_t i=0; i<1000; ++i) {
+    for (size_t i=0; i<10000; ++i) {
       Eigen::Matrix4d AX = AA.transpose() * PP;
       Eigen::Matrix4d AXA = AX * AA;
       Eigen::Vector4d AXB = AX * BB;
