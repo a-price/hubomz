@@ -589,6 +589,10 @@ Transform3 HuboPlus::KState::xform() const {
   return Transform3(body_rot, body_pos);
 }
 
+void HuboPlus::KState::setXform(const Transform3& t) {
+  body_pos = t.translation();
+  body_rot = t.rotation();
+}
 
 
 

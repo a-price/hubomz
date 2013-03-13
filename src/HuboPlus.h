@@ -41,6 +41,7 @@ public:
     fakerave::RealArray  jvalues;
 
     fakerave::Transform3 xform() const;
+    void setXform(const fakerave::Transform3& x);
 
   };
 

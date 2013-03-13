@@ -34,8 +34,8 @@ int main(int argc, char** argv) {
   }
 
 
-  Eigen::Vector3d X;
-  X.setZero();
+  Eigen::Vector3d X(0.0,0.0,0.0);
+
   double e = 0;
   double p = 0;
 

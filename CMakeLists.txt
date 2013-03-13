@@ -10,6 +10,8 @@ add_subdirectory(src)
 
 include_directories(src)
 
+add_subdirectory(zmp)
+
 if (QT_FOUND)
 add_subdirectory(calibrate)
 endif()
