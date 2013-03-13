@@ -313,7 +313,6 @@ int main(int argc, char** argv) {
   ach_open( &zmp_chan, HUBO_CHAN_ZMP_TRAJ_NAME, NULL );
   
 
-  HuboPlus hplus(argv[1]);
 
   bool show_gui = false;
 
@@ -616,6 +615,18 @@ int main(int argc, char** argv) {
   std::cerr << "Execution time:                           " << sim_time << "s\n";
   std::cerr << "Speedup over real-time:                   " << sim_time/total_time << "\n";
 
+  zmp_traj_t trajectory;
+  memset( &trajectory, 0, sizeof(trajectory) );
+
+  int N;
+  if( (int)traj.size() > MAX_TRAJ_SIZE )
+    N = MAX_TRAJ_SIZE;
+  else
+    N = (int)traj.size();
+
+  trajectory.count = N;
+  for(int i=0; i<N; i++)
+    memcpy( &(trajectory.traj[i]), &(traj[i]), sizeof(zmp_traj_element_t) );
 
   ach_put( &zmp_chan, &trajectory, sizeof(trajectory) );
   fprintf(stdout, "Message put\n");
