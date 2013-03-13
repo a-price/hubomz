@@ -254,12 +254,17 @@ int main(int argc, char** argv) {
     return 1;
   }
 
+  ach_channel_t zmp_chan;
+  ach_open( &zmp_chan, HUBO_CHAN_ZMP_TRAJ_NAME, NULL );
+  
+
   HuboPlus hplus(argv[1]);
 
   bool show_gui = true;
 
   double fy = hplus.defaultFootPos.y(); // half of horizontal separation distance between feet
   double sway = 0.085; // body sway (should be equal ish to fy)
+//  double sway = 0.01;
   double fz = 0.05; // foot liftoff height
 
   double com_height = 0.58; // height of COM above ground
@@ -451,6 +456,38 @@ int main(int argc, char** argv) {
   //////////////////////////////////////////////////////////////////////
   // ach_put goes after this line
 
+  zmp_traj_t trajectory;
+
+  int N;
+  if(traj.size() > MAX_TRAJ_SIZE)
+  {
+    N = MAX_TRAJ_SIZE;
+    fprintf(stdout, "Trajectory size has exceeded the maximum! (%d,%d)\n", int(traj.size()), MAX_TRAJ_SIZE);
+  }
+  else
+    N = traj.size();
+
+  trajectory.count = N;
+  for( int t=0; t<N; t++ )
+    memcpy( &(trajectory.traj[t]), &(traj[t]), sizeof(zmp_traj_element_t) );
+
+
+  ach_put( &zmp_chan, &trajectory, sizeof(trajectory) );
+  fprintf(stdout, "Message put\n");
+/*
+    for(int i=0; i<traj.size(); i++)
+        for(int j=0; j<HUBO_JOINT_COUNT; j++)
+            if(traj[i].angles[j] != 0)
+                fprintf(stdout, "(%d,%d) %f\n", i, j, traj[i].angles[j]);
+*/
+/*
+    int joint = RHR;
+    for(int i=0; i<trajectory.count; i++)
+    {
+        fprintf(stdout, "%d: Angle %f:%f\n", i, trajectory.traj[i].angles[joint], traj[i].angles[joint] );
+    }
+*/
+/*
   if (show_gui) {
 
     ZmpDemo demo(argc, argv, hplus, traj);
@@ -458,7 +495,7 @@ int main(int argc, char** argv) {
     demo.run();
 
   }
-
+*/
 
   return 0;
 

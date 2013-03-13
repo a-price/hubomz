@@ -24,7 +24,7 @@ typedef struct zmp_traj_element {
 
 enum {
   TRAJ_FREQ_HZ = 200,
-  MAX_TRAJ_SIZE = 600,
+  MAX_TRAJ_SIZE = 1000,
 };
 
 typedef struct zmp_traj {
