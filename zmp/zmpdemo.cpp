@@ -14,6 +14,10 @@ size_t seconds_to_ticks(double s) {
   return size_t(round(s*TRAJ_FREQ_HZ));
 }
 
+double sigmoid(double x) {
+  return 3*x*x - 2*x*x*x;
+}
+
 const int stance_foot_table[4] = { 0, 1, 0, 1 };
 const int swing_foot_table[4] = { -1, -1, 1, 0 };
 
@@ -262,12 +266,14 @@ void usage(std::ostream& ostr) {
     "  -g, --show-gui                    Show a GUI after computing trajectories.\n"
     "  -h, --com-height=NUMBER           Height of the center of mass\n"
     "  -f, --foot-y=NUMBER               Half-distance between feet\n"
+    "  -L, --foot-liftoff=NUMBER         Vertical liftoff distance of swing foot\n"
     "  -z, --zmp-y=NUMBER                Lateral distance from ankle to ZMP\n"
     "  -l, --lookahead-time=NUMBER       Lookahead window for ZMP preview controller\n"
     "  -p, --startup-time=NUMBER         Initial time spent with ZMP stationary\n"
     "  -n, --shutdown-time=NUMBER        Final time spent with ZMP stationary\n"
     "  -d, --double-support-time=NUMBER  Double support time\n"
     "  -s, --single-support-time=NUMBER  Single support time\n"
+    "  -a, --angle-weight=NUMBER         Angle weight for COM IK\n"
     "  -H, --help                        See this message\n";
     
 }
@@ -316,12 +322,14 @@ int main(int argc, char** argv) {
   double double_support_time = 0.05;
   double single_support_time = 0.70;
   double com_height = 0.58; // height of COM above ground
+  double com_ik_ascl = 0;
 
   size_t n_steps = 8; // how many steps?
 
   const struct option long_options[] = {
     { "show-gui",            no_argument,       0, 'g' },
     { "foot-y",              required_argument, 0, 'f' },
+    { "foot-liftoff",        required_argument, 0, 'L' },
     { "zmp-y",               required_argument, 0, 'z' },
     { "com-height",          required_argument, 0, 'h' },
     { "lookahead-time",      required_argument, 0, 'l' },
@@ -330,11 +338,12 @@ int main(int argc, char** argv) {
     { "double-support-time", required_argument, 0, 'd' },
     { "single-support-time", required_argument, 0, 's' },
     { "step-count",          required_argument, 0, 'c' },
+    { "angle-weight",        required_argument, 0, 'a' },
     { "help",                no_argument,       0, 'H' },
     { 0,                     0,                 0,  0  },
   };
 
-  const char* short_options = "gf:z:h:l:p:n:d:s:c:H";
+  const char* short_options = "gf:L:z:h:l:p:n:d:s:c:a:H";
 
   int opt, option_index;
 
@@ -342,6 +351,7 @@ int main(int argc, char** argv) {
     switch (opt) {
     case 'g': show_gui = true; break;
     case 'f': fy = getdouble(optarg); break;
+    case 'L': fz = getdouble(optarg); break;
     case 'z': zmpy = getdouble(optarg); break;
     case 'h': com_height = getdouble(optarg); break;
     case 'l': lookahead_time = getdouble(optarg); break;
@@ -349,6 +359,7 @@ int main(int argc, char** argv) {
     case 'n': shutdown_time = getdouble(optarg); break;
     case 'd': double_support_time = getdouble(optarg); break;
     case 's': single_support_time = getdouble(optarg); break;
+    case 'a': com_ik_ascl = getdouble(optarg); break;
     case 'c': n_steps = getlong(optarg); break;
     case 'H': usage(std::cout); exit(0); break;
     default:  usage(std::cerr); exit(1); break;
@@ -407,13 +418,14 @@ int main(int argc, char** argv) {
   }
 
   for (size_t k=0; k<n_steps; ++k) {
-    p = p_next;
-    p_next = -p_next;
     for (size_t i=0; i<double_support_ticks; ++i) {
+      double u = double(i)/double(double_support_ticks-1);
       stance[cur_tick] = s;
       footz(cur_tick) = 0;
-      zmpref(cur_tick++) = p;
+      zmpref(cur_tick++) = p + sigmoid(u)*(p_next-p);
     }
+    p = p_next;
+    p_next = -p_next;
     s = next_stance_table[s];
     for (size_t i=0; i<single_support_ticks; ++i) {
       double u = double(i)/double(single_support_ticks-1);
@@ -531,10 +543,34 @@ int main(int argc, char** argv) {
     
     bool ok = hplus.comIK( state, desiredCom, desired, mode, 
 			   HuboPlus::noGlobalIK(), xforms, 
-			   0, 0, ikvalid );
+			   com_ik_ascl, 0, ikvalid );
 
-    //for (int i=0; i<4; ++i) { std::cerr << ", " << ikvalid[i] << " "; }
-    assert( ok && "comIK sadness :(" );
+    if (!ok) {
+      kbody.transforms(state.jvalues, xforms);
+      std::cerr << "IK FAILURE!\n\n";
+      std::cerr << "  body: " << state.xform() << "\n\n";
+      for (int i=0; i<4; ++i) { 
+	if (mode[i] != HuboPlus::IK_MODE_FIXED &&
+	    mode[i] != HuboPlus::IK_MODE_FREE) {
+
+	  Transform3 fk = kbody.manipulatorFK(xforms, i);
+	  if (mode[i] == HuboPlus::IK_MODE_WORLD || 
+	      mode[i] == HuboPlus::IK_MODE_SUPPORT) {
+	    fk = state.xform() * fk;
+	  }
+	  vec3 dp, dq;
+	  deltaTransform(desired[i], fk, dp, dq);
+	  std::cerr << "  " << kbody.manipulators[i].name << ":\n";
+	  std::cerr << "    valid:   " << ikvalid[i] << "\n";
+	  std::cerr << "    desired: " << desired[i] << "\n";
+	  std::cerr << "    actual:  " << fk << "\n";
+	  std::cerr << "    dp:      " << dp << " with norm " << dp.norm() << "\n";
+	  std::cerr << "    dq:      " << dq << " with norm " << dq.norm() << "\n";
+	  std::cerr << "\n";
+	}
+      }
+      exit(1);
+    }
 
     zmp_traj_element_t cur;
     memset(&cur, 0, sizeof(cur));
