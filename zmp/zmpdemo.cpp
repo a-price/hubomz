@@ -3,6 +3,8 @@
 #include <ZmpPreview.h>
 #include <math.h>
 #include <mzcommon/MzGlutApp.h>
+#include <mzcommon/TimeUtil.h>
+#include <getopt.h>
 
 using namespace fakerave;
 
@@ -217,17 +219,21 @@ public:
   virtual void keyboard(unsigned char key, int x, int y) {
     switch (key) {
     case '-':
+      animating = false;
       deltaCurrent(-5);
       glutPostRedisplay();
       break;
     case '+':
     case '=':
+      animating = false;
       deltaCurrent(5);
       glutPostRedisplay();
       break;
     case 'r':
+      animating = false;
       resetCurrent();
       glutPostRedisplay();
+      break;
     case '\r':
     case '\n':
       animating = !animating;
@@ -247,36 +253,135 @@ public:
 };
 
 
+void usage(std::ostream& ostr) {
+  ostr << 
+    "usage: zmpdemo [OPTIONS] HUBOFILE.xml\n"
+    "\n"
+    "OPTIONS:\n"
+    "\n"
+    "  -g, --show-gui                    Show a GUI after computing trajectories.\n"
+    "  -h, --com-height=NUMBER           Height of the center of mass\n"
+    "  -f, --foot-y=NUMBER               Half-distance between feet\n"
+    "  -z, --zmp-y=NUMBER                Lateral distance from ankle to ZMP\n"
+    "  -l, --lookahead-time=NUMBER       Lookahead window for ZMP preview controller\n"
+    "  -p, --startup-time=NUMBER         Initial time spent with ZMP stationary\n"
+    "  -n, --shutdown-time=NUMBER        Final time spent with ZMP stationary\n"
+    "  -d, --double-support-time=NUMBER  Double support time\n"
+    "  -s, --single-support-time=NUMBER  Single support time\n"
+    "  -H, --help                        See this message\n";
+    
+}
+
+double getdouble(const char* str) {
+  char* endptr;
+  double d = strtod(str, &endptr);
+  if (!endptr || *endptr) {
+    std::cerr << "Error parsing number on command line!\n\n";
+    usage(std::cerr);
+    exit(1);
+  }
+  return d;
+}
+
+long getlong(const char* str) {
+  char* endptr;
+  long d = strtol(str, &endptr, 10);
+  if (!endptr || *endptr) {
+    std::cerr << "Error parsing number on command line!\n\n";
+    usage(std::cerr);
+    exit(1);
+  }
+  return d;
+}
+
+
+
 int main(int argc, char** argv) {
 
   if (argc < 2) {
-    std::cout << "usage: " << argv[0] << " HUBOFILE.xml\n";
+    usage(std::cerr);
     return 1;
   }
 
-  HuboPlus hplus(argv[1]);
 
-  bool show_gui = true;
+  bool show_gui = false;
 
-  double fy = hplus.defaultFootPos.y(); // half of horizontal separation distance between feet
-  double sway = 0.085; // body sway (should be equal ish to fy)
+  double fy = 0.085; // half of horizontal separation distance between feet
+  double zmpy = 0; // lateral displacement between zmp and ankle
   double fz = 0.05; // foot liftoff height
 
+  double lookahead_time = 2.5;
+  double startup_time = 1.0;
+  double shutdown_time = 1.0;
+  double double_support_time = 0.05;
+  double single_support_time = 0.70;
   double com_height = 0.58; // height of COM above ground
-  double zmp_dt = 1.0/TRAJ_FREQ_HZ; // delta t for ZMP preview controller
-  double zmp_R = 1e-10; // gain for ZMP controller
-  size_t num_lookahead = seconds_to_ticks(2.5); // lookahead window size
 
-  size_t startup_ticks = seconds_to_ticks(1.0); // hold ZMP at center for 1s at start
-  size_t shutdown_ticks = seconds_to_ticks(1.0); // hold ZMP at center for 1s at end
-  size_t double_support_ticks = seconds_to_ticks(0.05); // .05s of double support each step
-  size_t single_support_ticks = seconds_to_ticks(0.70); // .70s of single support each step
   size_t n_steps = 8; // how many steps?
 
+  const struct option long_options[] = {
+    { "show-gui",            no_argument,       0, 'g' },
+    { "foot-y",              required_argument, 0, 'f' },
+    { "zmp-y",               required_argument, 0, 'z' },
+    { "com-height",          required_argument, 0, 'h' },
+    { "lookahead-time",      required_argument, 0, 'l' },
+    { "startup-time",        required_argument, 0, 'p' },
+    { "shutdown-time",       required_argument, 0, 'n' },
+    { "double-support-time", required_argument, 0, 'd' },
+    { "single-support-time", required_argument, 0, 's' },
+    { "step-count",          required_argument, 0, 'c' },
+    { "help",                no_argument,       0, 'H' },
+    { 0,                     0,                 0,  0  },
+  };
+
+  const char* short_options = "gf:z:h:l:p:n:d:s:c:H";
+
+  int opt, option_index;
+
+  while ( (opt = getopt_long(argc, argv, short_options, long_options, &option_index)) != -1 ) {
+    switch (opt) {
+    case 'g': show_gui = true; break;
+    case 'f': fy = getdouble(optarg); break;
+    case 'z': zmpy = getdouble(optarg); break;
+    case 'h': com_height = getdouble(optarg); break;
+    case 'l': lookahead_time = getdouble(optarg); break;
+    case 'p': startup_time = getdouble(optarg); break;
+    case 'n': shutdown_time = getdouble(optarg); break;
+    case 'd': double_support_time = getdouble(optarg); break;
+    case 's': single_support_time = getdouble(optarg); break;
+    case 'c': n_steps = getlong(optarg); break;
+    case 'H': usage(std::cout); exit(0); break;
+    default:  usage(std::cerr); exit(1); break;
+    }
+  }
+
+  size_t num_lookahead = seconds_to_ticks(lookahead_time); // lookahead window size
+  size_t startup_ticks = seconds_to_ticks(startup_time); // hold ZMP at center for 1s at start
+  size_t shutdown_ticks = seconds_to_ticks(shutdown_time); // hold ZMP at center for 1s at end
+  size_t double_support_ticks = seconds_to_ticks(double_support_time); // .05s of double support each step
+  size_t single_support_ticks = seconds_to_ticks(single_support_time); // .70s of single support each step
+
+  const char* hubofile = 0;
+
+  while (optind < argc) {
+    if (!hubofile) {
+      hubofile = argv[optind++];
+    } else {
+      std::cerr << "Error: extra arguments on command line.\n\n";
+      usage(std::cerr);
+      exit(1);
+    }
+  }
+
+  HuboPlus hplus(hubofile);
+
   size_t step_ticks = double_support_ticks + single_support_ticks;
-
-
   size_t total_ticks = startup_ticks + n_steps * step_ticks + shutdown_ticks;
+
+  double zmp_R = 1e-10; // gain for ZMP controller
+  double zmp_dt = 1.0/TRAJ_FREQ_HZ; // delta t for ZMP preview controller
+  
+  TimeStamp t0 = TimeStamp::now();
 
   ZmpPreview preview(zmp_dt, com_height, num_lookahead, zmp_R);
 
@@ -291,7 +396,7 @@ int main(int argc, char** argv) {
   size_t cur_tick = 0;
 
   double p = 0;
-  double p_next = sway;
+  double p_next = fy-zmpy;
   stance_t s = DOUBLE_LEFT;
 
 
@@ -329,6 +434,8 @@ int main(int argc, char** argv) {
 
   assert(cur_tick == total_ticks);
 
+  TimeStamp t1 = TimeStamp::now();
+
   //////////////////////////////////////////////////////////////////////
   // We are now running our ZMP preview controller to generate a COM 
   // trajectory
@@ -345,6 +452,8 @@ int main(int argc, char** argv) {
     zmp(i) = p;
     p = preview.update(Y, e, zmpref.block(i, 0, total_ticks-i, 1));
   }
+
+  TimeStamp t2 = TimeStamp::now();
 
   //////////////////////////////////////////////////////////////////////
   // fill up a full body trajectory using COM & footstep info
@@ -450,6 +559,21 @@ int main(int argc, char** argv) {
 
   //////////////////////////////////////////////////////////////////////
   // ach_put goes after this line
+
+  TimeStamp t3 = TimeStamp::now();
+
+  double sim_time = total_ticks * zmp_dt;
+  double d0 = (t1-t0).toDouble();
+  double d1 = (t2-t1).toDouble();
+  double d2 = (t3-t2).toDouble();
+  double total_time = (t3-t0).toDouble();
+
+  std::cerr << "Generated reference trajectories in:      " << d0 << "s\n";
+  std::cerr << "Generated center of mass trajectories in: " << d1 << "s\n";
+  std::cerr << "Generated full-body trajectories in:      " << d2 << "s\n";
+  std::cerr << "Total time:                               " << total_time << "s\n";
+  std::cerr << "Execution time:                           " << sim_time << "s\n";
+  std::cerr << "Speedup over real-time:                   " << sim_time/total_time << "\n";
 
   if (show_gui) {
 
