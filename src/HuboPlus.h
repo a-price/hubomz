@@ -9,8 +9,10 @@
 #include "fakerave.h"
 #include "HuboKin.h"
 
-#ifndef __APPLE__
+#ifdef HAVE_HUBO_ACH
 #include <hubo.h>
+#else
+#include "hubo_joint_count.h"
 #endif
 
 class HuboPlus {

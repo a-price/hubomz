@@ -1,7 +1,13 @@
 #ifndef _HUBO_ZMP_H_
 #define _HUBO_ZMP_H_
 
+#include <stdlib.h>
+
+#ifdef HAVE_HUBO_ACH
 #include <hubo.h>
+#else
+#include <hubo_joint_count.h>
+#endif
 
 enum stance_t {
   DOUBLE_LEFT  = 0,

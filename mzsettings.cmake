@@ -51,3 +51,14 @@ macro(add_gui_app name)
 endmacro(add_gui_app)
 
 include_directories(${PROJECT_SOURCE_DIR})
+
+find_path(HUBO_ACH_INCLUDE "hubo.h" PATHS ${CMAKE_INCLUDE_PATH})
+
+if (${HUBO_ACH_INCLUDE} STREQUAL HUBO_ACH_INCLUDE-NOTFOUND)
+  message("could not find hubo-ach includes")
+  set(HAVE_HUBO_ACH 0)
+else (${HUBO_ACH_INCLUDE} STREQUAL HUBO_ACH_INCLUDE-NOTFOUND)
+  message("found hubo-ach includes at ${HUBO_ACH_INCLUDE}")
+  add_definitions(-DHAVE_HUBO_ACH)
+  set(HAVE_HUBO_ACH 1)
+endif (${HUBO_ACH_INCLUDE} STREQUAL HUBO_ACH_INCLUDE-NOTFOUND)
