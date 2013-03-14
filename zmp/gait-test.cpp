@@ -13,7 +13,7 @@ int main() {
 	timer.single_support_time = 0.70; // .70s of single support each step
 	timer.double_support_time = 0.05; // .05s of double support each step
 
-	timer.set_duty_single(0.55, 0.70);
+	//timer.set_duty_single(0.55, 0.70);
 
 	std::cerr << timer << std::endl;
 
@@ -22,7 +22,7 @@ int main() {
 	step_traj_t step_traj = step_times(steps(n_steps, true), timer);
 
 	//////////////////////////////////////////////////////////////////////
-	// check
+	// print out, pipe to matlab/timing.txt and run matlab/zmp_plot.m
 	size_t eric_ticks = step_traj.stance.size();
 	EIGEN_V_VEC2D eric_zmpref = step_traj.zmpref;
 	std::vector<stance_t> eric_stance = step_traj.stance;

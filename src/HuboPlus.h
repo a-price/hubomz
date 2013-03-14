@@ -57,6 +57,8 @@ public:
   fakerave::vec3 defaultFootPos;
   fakerave::vec3 defaultComPos;
   fakerave::quat footRot;
+  
+  fakerave::real footAnkleDist;
 
   fakerave::IndexArray huboJointOrder;
 
@@ -104,6 +106,24 @@ public:
               fakerave::real ascl=10,
               fakerave::real fscl=0,
               bool* ikvalid=0 ) const;
+
+  fakerave::real nonSupportMass(const IKMode mode[2]) const;
+
+  void computeGroundReaction(const fakerave::vec3& comPos,
+			     const fakerave::vec3& comAccel,
+			     const fakerave::Transform3 footXforms[2],
+			     const IKMode mode[2],
+			     fakerave::vec3 forces[2],
+			     fakerave::vec3 torques[2]) const;
+
+  void computeGroundReaction(const fakerave::real mass,
+			     const fakerave::vec3& comPos,
+			     const fakerave::vec3& comAccel,
+			     const fakerave::Transform3& footXform,
+			     fakerave::vec3* force,
+			     fakerave::vec3* torque) const;
+
+  
   
 };
 

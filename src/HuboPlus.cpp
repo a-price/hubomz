@@ -155,6 +155,19 @@ HuboPlus::HuboPlus(const std::string& filename):
   kbody.alignJoint(jl("LAR"), xforms, ja("LHR"), vec3(0,1,0), false);
   kbody.alignJoint(jl("RAR"), xforms, ja("RHR"), vec3(0,1,0), false);
   //kbody.alignJoint(jl("HPY"), xforms, vec3(0), vec3(0,1,0), false);
+
+  real desiredMass = 43.5;
+  real totalMass = kbody.totalMass();
+  std::cerr << "MASS WAS " << totalMass << "\n";
+  kbody.adjustTotalMass(desiredMass / totalMass);
+  std::cerr << "MASS IS " << kbody.totalMass() << "\n";
+
+  IKMode mode[2] = { IK_MODE_WORLD, IK_MODE_WORLD };
+  std::cerr << "FULL BODY MASS = " << nonSupportMass(mode) << "\n";
+  mode[0] = IK_MODE_SUPPORT;
+  std::cerr << "SINGLE SUPPORT MASS = " << nonSupportMass(mode) << "\n";
+  mode[1] = IK_MODE_SUPPORT;
+  std::cerr << "DOUBLE SUPPORT MASS = " << nonSupportMass(mode) << "\n";
   
   assert_equal( ja("LHY").y(), ja("LHR").y() );
   assert_equal( ja("LHY").y(), ja("LAR").y() );
@@ -248,6 +261,9 @@ HuboPlus::HuboPlus(const std::string& filename):
 
   real jy = kc.leg_l2;
   real jz = kc.leg_l1 + kc.leg_l3 + kc.leg_l4 + kc.leg_l5 + kc.leg_l6;
+
+  footAnkleDist = kc.leg_l6;
+  std::cerr << "FOOT ANKLE DIST = " << footAnkleDist << "\n";
 
   size_t lfoot = bl("Body_LAR");
   size_t rfoot = bl("Body_RAR");
@@ -597,5 +613,164 @@ void HuboPlus::KState::setXform(const Transform3& t) {
 }
 
 
+real HuboPlus::nonSupportMass(const IKMode mode[2]) const {
 
-                              
+  real totalMass = 0;
+
+  for (size_t bi=0; bi<kbody.bodies.size(); ++bi) {
+    
+    bool addMass = true;
+
+    for (int f=0; f<2; ++f) {
+      if (mode[f] == IK_MODE_SUPPORT) {
+	const Manipulator& m = kbody.manipulators[f];
+	for (int j=0; j<2; ++j) {
+	  size_t ji = m.jointIndices[m.jointIndices.size()-j-1];
+	  if (kbody.bodyDependsOnJoint(bi, ji)) {
+	    addMass = false;
+	  }
+	}
+      }
+    }
+
+    if (addMass) { totalMass += kbody.bodies[bi].mass; }
+
+  }
+  
+  return totalMass;
+
+}
+
+const real g = 9.8;
+
+void HuboPlus::computeGroundReaction(const vec3& comPos,
+				     const vec3& comAccel,
+				     const Transform3 footXforms[2],
+				     const IKMode mode[2],
+				     vec3 forces[2],
+				     vec3 torques[2]) const {
+
+  // Get the mass
+  real m = nonSupportMass(mode);
+
+  if (mode[0] == IK_MODE_SUPPORT && mode[1] == IK_MODE_SUPPORT) {
+
+    // If we're in dual support
+
+    // Find the displacement between the feet
+    vec3 ry = footXforms[0].translation() - footXforms[1].translation();
+    assert(ry.z() == 0);
+
+    // Let d be the distance between the feet
+    real d = ry.norm();
+    ry /= d;
+    
+    vec3 rz = vec3(0,0,1);
+    vec3 rx = vec3::cross(ry,rz);
+    assert( fabs( rx.norm() - 1.0 ) < 1e-8 );
+    
+    mat3 R;
+    R.setRow(0, rx);
+    R.setRow(1, ry);
+    R.setRow(2, rz);
+    
+    // Set up a transformation from "world" space to the 
+    // frame whose y axis points from right angle to left ankle
+    // and whose origin is at the right ankle
+    Transform3 forceFrame( quat::fromMat3(R), 
+			   -R * footXforms[1].translation() );
+
+    assert(comAccel.z() == 0);
+
+    // COM position in the force frame
+    vec3 cp = forceFrame * comPos;
+
+    // Grab x and y coord of COM in force frame
+    real x = cp.x();
+    real c = cp.y();
+    real h = cp.z();
+
+    // COM acceleration the force frame
+    vec3 ca = forceFrame.rotFwd() * comAccel;
+    ca[2] += g;
+
+    vec3 ff[2];
+
+    real ratio = 1-c/d;
+
+    ff[1][0] = m * (ratio*ca[0] + x*ca[1]/d);
+    ff[1][1] = m * ratio * ca[1];
+    ff[1][2] = m * (ratio*ca[2] + h*ca[1]/d);
+
+    ff[0] = m*ca - ff[1];
+
+    mat3 RT = R.transpose();
+    
+    for (int f=0; f<2; ++f) {
+
+      mat3 forceToFoot = footXforms[f].rotInv() * RT;
+
+      if (forces) { forces[f] = forceToFoot * ff[f]; }
+
+      if (torques) {
+	// Moment arm for each foot
+	vec3 r = (f == 0) ? vec3(-x, d-c, -h) : -cp;
+	torques[f] = forceToFoot * vec3::cross(r, ff[f]);
+      }
+
+    }
+
+  } else if (mode[0] == IK_MODE_SUPPORT || mode[1] == IK_MODE_SUPPORT) {
+
+    // If we're in single support
+
+    int stance = (mode[1] == IK_MODE_SUPPORT ? 1 : 0);
+    int swing = 1-stance;
+
+    computeGroundReaction(m, comPos, comAccel, footXforms[stance], 
+			  forces ? forces + stance : 0,
+			  torques ? torques + stance : 0);
+
+    if (forces) { forces[swing] = vec3(0); }
+    if (torques) { torques[swing] = vec3(0); }
+
+  } else {
+
+    // no support
+    if (forces) { forces[0] = forces[1] = vec3(0); }
+    if (torques) { torques[0] = torques[1] = vec3(0); }
+    
+  }
+
+    
+
+}
+
+void HuboPlus::computeGroundReaction(const real m,
+				     const vec3& comPos,
+				     const vec3& comAccel,
+				     const Transform3& footXform,
+				     vec3* force,
+				     vec3* torque) const {
+
+  assert(comAccel.z() == 0);
+
+  // COM in frame of foot
+  vec3 cp = footXform.transformInv(comPos);
+
+  // COM accel in frame of foot
+  vec3 ca = footXform.rotInv() * comAccel;
+  ca[2] += g; // tack on gravity to the Z component
+
+  // F = ma
+  vec3 f = m*ca;
+
+
+  if (force)  { *force = f; }
+  if (torque) { 
+    // moment arm for torque from foot
+    vec3 r = -cp;
+    *torque = vec3::cross(r, f); 
+  }
+
+}

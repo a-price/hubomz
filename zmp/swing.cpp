@@ -271,8 +271,66 @@ void swingSimpleBezier( double _x0, double _y0, double _theta0,
     _yaw[i] = _theta0 + dtheta*i;
     
   }
-  
 }
+
+/**
+ * @function swingEllipse2
+ * @brief Generate Ellipse trajectory, vel of x, y, z all start from zero
+ */
+void swingEllipse2( double _x0, double _y0, double _theta0,
+       double _x1, double _y1, double _theta1,
+       int _count, 
+       bool _isLeft,
+       double _pos[N][3],
+       double _yaw[N] ) {
+
+  double a, b;  
+  double t, t0, t1, dt;
+  double xChange, yChange, yawChange, yaw, dyaw;
+  double alpha, c, s;
+  double l;
+  int i;
+
+  xChange = _x1 - _x0;
+  yChange = _y1 - _y0;
+  a = sqrt(xChange * xChange + yChange * yChange) / 2; 
+  b = a / M_PI;
+
+  yawChange = _theta1 - _theta0;
+  dyaw = yawChange / (_count-1);
+
+  t0 = 0;
+  t1 = M_PI;
+  dt = (t1 - t0) / (_count-1);
+  t = t0;
+
+  alpha = atan2(yChange, xChange);
+  c = cos(alpha);
+  s = sin(alpha);
+
+  l = 0; 
+  yaw = _theta0;
+
+  for (i = 0; i < _count - 1; i++) {
+
+    _pos[i][0] = _x0 + l*c;
+    _pos[i][1] = _y0 + l*s;
+    _pos[i][2] = b * sin( (cos(t)+1)*M_PI/2);
+    _yaw[i] = yaw;
+
+    t += dt;
+    yaw += dyaw;
+    l = a * cos( (cos(t)+1)*M_PI/2) + a;
+
+  }
+
+  _pos[i][0] = _x1;
+  _pos[i][1] = _y1;
+  _pos[i][2] = 0;
+  _yaw[i] = _theta1;
+
+}
+
 
 
 /////////////// COMMENTED OUT SECTION //////////////

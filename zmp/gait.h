@@ -20,8 +20,8 @@ struct step_traj_t {
 
 struct step_timer_t {
 	step_timer_t()
-		: single_support_time(0),
-		  double_support_time(0),
+		: single_support_time(0.70),
+		  double_support_time(0.05),
 		  startup_time(1.0),
 		  shutdown_time(1.0),
 		  duty_factor(0),
@@ -68,10 +68,18 @@ struct step_timer_t {
 		return seconds_to_ticks(shutdown_time);
 	}
 	size_t compute_double(double dist, double theta, double height) {
-		return seconds_to_ticks(double_support_time);
+		double double_time = double_support_time;
+		double_time += height_gain * height;
+		double_time += dist_gain * dist;
+		double_time += theta_gain * theta;
+		return seconds_to_ticks(double_time);
 	}
 	size_t compute_single(double dist, double theta, double height) {
-		return seconds_to_ticks(single_support_time);
+		double single_time = single_support_time;
+		single_time += height_gain * height;
+		single_time += dist_gain * dist;
+		single_time += theta_gain * theta;
+		return seconds_to_ticks(single_time);
 	}
 
 	friend std::ostream& operator<<(std::ostream& out, step_timer_t& t) {

@@ -384,7 +384,11 @@ namespace fakerave {
                         const BoolArray* activeJoints=0) const;
 
     vec3 com(const Transform3Array& xforms) const;
+
+    real totalMass() const;
     
+    void adjustTotalMass(real fraction);
+
     void comJacobian(const Transform3Array& xforms, 
                      const IndexArray& jointIndices,
                      MatX& Jt) const;
