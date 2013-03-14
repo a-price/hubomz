@@ -167,7 +167,7 @@ void swing2Cycloids( double _x0, double _y0, double _theta0,
 
   for( int i = 0; i < _count; ++i ) {
     t = 0 + dt*i;
-    _pos[i][2] = r*(1-cos(t));
+    _pos[i][2] = (_maxheight / 2.0 )*(1-cos(t));
     _yaw[i] = _theta0 + i*(_theta1-_theta0)/(_count-1);
   }
 
