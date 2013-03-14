@@ -13,7 +13,7 @@ int main() {
 	timer.single_support_time = 0.70; // .70s of single support each step
 	timer.double_support_time = 0.05; // .05s of double support each step
 
-	timer.set_duty_single(0.55, 0.70);
+	//timer.set_duty_single(0.55, 0.70);
 
 	std::cerr << timer << std::endl;
 
