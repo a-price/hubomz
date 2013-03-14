@@ -31,6 +31,7 @@ void swingSimpleCycloid( double _x0, double _y0, double _theta0,
 			 double _x1, double _y1, double _theta1,
 			 int _count, 
 			 bool _isLeft,
+                         double _maxheight,
 			 double _pos[N][3],
 			 double _yaw[N] ) {
   
@@ -59,7 +60,7 @@ void swingSimpleCycloid( double _x0, double _y0, double _theta0,
     t = t0 + dt*i;
 
     xp_t = r*(t-sin(t));
-    yp_t = r*(1-cos(t));
+    yp_t = _maxheight*(1-cos(t))/2.0;
     
     _pos[i][0] = _x0 + xp_t*cos_a;
     _pos[i][1] = _y0 + xp_t*sin_a;
@@ -76,11 +77,12 @@ void swingSimpleCycloid( double _x0, double _y0, double _theta0,
  * @brief Generate Ellipse trajectory
  */
 void swingEllipse( double _x0, double _y0, double _theta0,
-       double _x1, double _y1, double _theta1,
-       int _count, 
-       bool _isLeft,
-       double _pos[N][3],
-       double _yaw[N] ) {
+                   double _x1, double _y1, double _theta1,
+                   int _count, 
+                   bool _isLeft,
+                   double _maxheight,
+                   double _pos[N][3],
+                   double _yaw[N] ) {
 
   double a, b;  
   double t, t0, t1, dt;
@@ -137,6 +139,7 @@ void swing2Cycloids( double _x0, double _y0, double _theta0,
 		     double _x1, double _y1, double _theta1,
 		     int _count, 
 		     bool _isLeft,
+                     double _maxheight,
 		     double _pos[N][3],
 		     double _yaw[N] ) {
   
@@ -181,7 +184,7 @@ void swing2Cycloids( double _x0, double _y0, double _theta0,
   for( int i = 0; i < _count - 2*m; ++i ) {
     t = 0 + dt*i;
     xp_t = r*(t-sin(t));
-    yp_t = r*(1-cos(t));
+    yp_t = _maxheight*(1-cos(t))/2.0;
     
     _pos[m+i][0] = _x0 + xp_t*cos_a;
     _pos[m+i][1] = _y0 + xp_t*sin_a;
@@ -211,6 +214,7 @@ void swingSimpleBezier( double _x0, double _y0, double _theta0,
 			double _x1, double _y1, double _theta1,
 			int _count, 
 			bool _isLeft,
+                        double _maxheight,
 			double _pos[N][3],
 			double _yaw[N] ) {
 
@@ -259,7 +263,7 @@ void swingSimpleBezier( double _x0, double _y0, double _theta0,
     t = t0 + dt*i;
     b = 0 + db*i;
 
-    yp_t = r*(1-cos(t));
+    yp_t = _maxheight*(1-cos(t))/2.0;
     
     _pos[i][0] = pow( (1-b), 3)*px0 + 3*pow( (1-b), 2)*b*px1 + 3*(1-b)*pow(b,2)*px2 + pow(b,3)*px3;
     _pos[i][1] = pow( (1-b), 3)*py0 + 3*pow( (1-b), 2)*b*py1 + 3*(1-b)*pow(b,2)*py2 + pow(b,3)*py3;
