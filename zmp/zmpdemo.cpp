@@ -521,70 +521,75 @@ int main(int argc, char** argv) {
   // and the parts that are actually important:
   std::vector<stance_t> stance(total_ticks); // what stance we want to be in at each tick (for IK gains scheduling)
   std::vector<Eigen::Vector2d> zmpref;       // where the zmp is at each tick
-  std::vector<Eigen::Vector3d> foot_L_pos;    // where the left foot is at each tick
-  std::vector<double> foot_L_rot;
-  std::vector<Eigen::Vector3d> foot_R_pos;    // where the right foot is at each tick
-  std::vector<double> foot_R_rot;
+  std::vector<Eigen::Vector3d> foot_L_pos;   // where the left foot is at each tick
+  std::vector<double> foot_L_rot;            // the orientation of the left foot at each tick  
+  std::vector<Eigen::Vector3d> foot_R_pos;   // where the right foot is at each tick
+  std::vector<double> foot_R_rot;            // the orientation of the right foot at each tick
 
   // and now actual calculation
-  
+  // set startup tick variables
   size_t startup_ticks = timer_compute_startup();
   for(; cur_tick < startup_ticks; cur_tick++) {
-    stance.push_back(initial_stance);
-    zmpref.push_back((Eigen::Vector2d(foot_L_cur->x, foot_L_cur->y) + Eigen::Vector2d(foot_L_cur->x, foot_L_cur->y)) / 2.0);
-    foot_L_pos.push_back(foot_L_cur->x, foot_L_cur->y, 0);
-    foot_R_pos.push_back(foot_R_cur->x, foot_R_cur->y, 0);
-    foot_L_rot.push_back(foot_L_cur->theta);
-    foot_R_rot.push_back(foot_R_cur->theta);
+    stance.push_back(initial_stance); // set stance for all startup ticks to initial stance from footprint generator
+    zmpref.push_back((Eigen::Vector2d(foot_L_cur->x, foot_L_cur->y) + Eigen::Vector2d(foot_R_cur->x, foot_R_cur->y)) / 2.0);
+    foot_L_pos.push_back(foot_L_cur->x, foot_L_cur->y, 0); // set left foot x,y,z
+    foot_R_pos.push_back(foot_R_cur->x, foot_R_cur->y, 0); // set right foot x,y,z
+    foot_L_rot.push_back(foot_L_cur->theta); // set left foot theta
+    foot_R_rot.push_back(foot_R_cur->theta); // set right foot theta
   }
+  
   for(std::vector<Footprint>::iterator step = future_steps.begin(); step != future_steps.begin(); step++) {
-    Eigen::Vector2d step_start;
-    Eigen::Vector2d step_next;
-    Eigen::Vector2d stance;
+    Eigen::Vector2d step_start; // step foot starting position
+    Eigen::Vector2d step_next; // step foot landing position
+    Eigen::Vector2d stance; // stance foot position
     double dist;
     double theta;
 
+    // set variables for next step foot
     if (step->is_left) {
-      foot_L_next = *step;
-      step_cur = Eigen::Vector2d(foot_L_cur.x, foot_L_cur.y);
-      step_next = Eigen::Vector2d(foot_L_next.x, foot_L_next.y);
-      theta = foot_L_next.theta - foot_L_cur.theta;
-      stance = Eigen::Vector2d(foot_R_cur.x, foot_R_cur.y);
+      foot_L_next = *step; // set next left foot step to next step in interator
+      step_cur = Eigen::Vector2d(foot_L_cur.x, foot_L_cur.y); // set current foot position
+      step_next = Eigen::Vector2d(foot_L_next.x, foot_L_next.y); // set next foot position
+      theta = foot_L_next.theta - foot_L_cur.theta; // set theta to change in theta b/t current and next step rotations
+      stance = Eigen::Vector2d(foot_R_cur.x, foot_R_cur.y); // set stance foot position
     }
     else {
-      foot_R_next = *step;
-      step_cur = Eigen::Vector2d(foot_R_cur.x, foot_R_cur.y);
-      step_next = Eigen::Vector2d(foot_R_next.x, foot_R_next.y);
-      theta = foot_R_next.theta - foot_R_cur.theta;
-      stance = Eigen::Vector2d(foot_L_cur.x, foot_L_cur.y);
+      foot_R_next = *step; // set next left foot step to next step in interator
+      step_cur = Eigen::Vector2d(foot_R_cur.x, foot_R_cur.y); // set current foot position
+      step_next = Eigen::Vector2d(foot_R_next.x, foot_R_next.y); // set next foot position
+      theta = foot_R_next.theta - foot_R_cur.theta; // set theta to change in theta b/t current and next step rotations
+      stance = Eigen::Vector2d(foot_L_cur.x, foot_L_cur.y); // set stance foot position
     }
 
-    dist = (step_next - step_cur).norm();
-    size_t double_ticks = timer.compute_double(dist, theta, fz);
-    size_t single_ticks = timer.compute_double(dist, theta, fz);
+    dist = (step_next - step_cur).norm(); // calculate next step foot step distance
+    size_t double_ticks = timer.compute_double(dist, theta, fz); // compute double support ticks
+    size_t single_ticks = timer.compute_double(dist, theta, fz); // compute single support ticks
+    // DOUBLE-SUPPORT PHASE: calculate variables
     for(size_t t = 0; t < double_ticks; t++) {
-      stance.push_back(step->is_left ? DOUBLE_RIGHT : DOUBLE_LEFT);
-      foot_L_pos.push_back(foot_L_cur->x, foot_L_cur->y, 0);
-      foot_R_pos.push_back(foot_R_cur->x, foot_R_cur->y, 0);
-      foot_L_rot.push_back(foot_L_cur->theta);
-      foot_R_rot.push_back(foot_R_cur->theta);
+      stance.push_back(step->is_left ? DOUBLE_RIGHT : DOUBLE_LEFT); // set stance so origin is at foot not about to step with
+      foot_L_pos.push_back(foot_L_cur->x, foot_L_cur->y, 0); // set current left foot position
+      foot_R_pos.push_back(foot_R_cur->x, foot_R_cur->y, 0); // set current right foot position
+      foot_L_rot.push_back(foot_L_cur->theta); // set current left foot rotation
+      foot_R_rot.push_back(foot_R_cur->theta); // set current right foot rotation
 
-      double u = double(t)/double(double_ticks-1);
+      double u = double(t)/double(double_ticks-1); // get portion of double-support phase
       double sig = sigmoid(u);
       zmpref.push_back(step_cur * (1.0-sig) + step_next * sig);
     }
+    // SINGLE-SUPPORT PHASE: calculate variables
     for(size_t t = 0; t < single_ticks; t++) {
-      stance.push_back(step->is_left ? SINGLE_RIGHT : SINGLE_LEFT);
-      zmpref.push_back(stance);
-      foot_L_pos.push_back(foot_L_cur->x, foot_L_cur->y, 0);
-      foot_R_pos.push_back(foot_R_cur->x, foot_R_cur->y, 0);
-      foot_L_rot.push_back(foot_L_cur->theta);
-      foot_R_rot.push_back(foot_R_cur->theta);
+      stance.push_back(step->is_left ? SINGLE_RIGHT : SINGLE_LEFT); // set stance to single for whichever foot isn't about to step
+      zmpref.push_back(stance); // set zmpref to location of the stance foot
+      foot_L_pos.push_back(foot_L_cur->x, foot_L_cur->y, 0); // set current left foot position
+      foot_R_pos.push_back(foot_R_cur->x, foot_R_cur->y, 0); // set current right foot position
+      foot_L_rot.push_back(foot_L_cur->theta); // set current left foot rotation
+      foot_R_rot.push_back(foot_R_cur->theta); // set current right foot rotation
     }
 
     if (step->is_left) foot_L_cur = *step;
     else foot_R_cur = *step;
   }
+  // SHUTDOWN-SUPPORT PHASE: calculate variables
   size_t shutdown_ticks = timer.compute_shutdown();
   for(; cur_tick < total_ticks; cur_tick++) {
   }
