@@ -106,7 +106,7 @@ public:
     for (size_t hi=0; hi<hplus.huboJointOrder.size(); ++hi) {
       size_t ji = hplus.huboJointOrder[hi];
       if (ji != size_t(-1)) {
-	state.jvalues[ji] = cur.angles[hi];
+      	state.jvalues[ji] = cur.angles[hi];
       }
     }
     
@@ -139,8 +139,8 @@ public:
       int new_stance_foot = stance_foot_table[traj[cur_index].stance];
 
       if (new_stance_foot != stance_foot) {
-	stance_foot = new_stance_foot;
-	stance_foot_xform = state.xform() * kbody.manipulatorFK(xforms, stance_foot);
+        stance_foot = new_stance_foot;
+        stance_foot_xform = state.xform() * kbody.manipulatorFK(xforms, stance_foot);
       }
 
       setStateFromTraj(traj[cur_index]);
@@ -250,11 +250,61 @@ public:
     
   }
 
-  
-
-
-
 };
+
+/*
+ * @function: validateCOMTraj(Eigen::MatrixXd& comX, Eigen::MatrixXd& comY)
+ * @brief: validation of COM output trajectory data
+ * @return: void
+*/
+void validateCOMTraj(Eigen::MatrixXd& comX, Eigen::MatrixXd& comY) {
+    const double dt = 1.0/TRAJ_FREQ_HZ;
+    double comVel, comAcc;
+    Eigen::Matrix3d comStateDiffs;
+    double comStateMaxes[] = {0.0, 0.0, 0.0};
+    const double comStateTol[] = {2.0, 5.0}; // m/s, m/s^2, m/s^3
+    for (int n=0; n<(comX.rows()-1); n++) {
+      // Calculate COM vel and acc norms from x and y components
+      comVel = sqrt((comX(n+1,0)-comX(n,0))*(comX(n+1,0)-comX(n,0)) + (comY(n+1,0)-comY(n,0))*(comY(n+1,0)-comY(n,0)))/dt;
+      comAcc = sqrt((comX(n+1,1)-comX(n,1))*(comX(n+1,1)-comX(n,1)) + (comY(n+1,1)-comY(n,1))*(comY(n+1,1)-comY(n,1)))/dt;
+      // Update max state values
+      if (comVel > comStateMaxes[0]) comStateMaxes[0] = comVel;
+      if (comAcc > comStateMaxes[1]) comStateMaxes[1] = comAcc;
+      // Check if any are over limit
+      if (comVel > comStateTol[0]) {
+          std::cerr << "COM velocity sample " << n+1 << "is larger than " << comStateTol[0] << "(" << comVel << ")\n";
+      }
+      if (comAcc > comStateTol[1]) {
+          std::cerr << "COM acceleration of sample " << n+1 << "is larger than " << comStateTol[1] << "(" << comAcc << ")\n";
+      }
+    }
+    std::cerr << "comMaxVel: " << comStateMaxes[0]
+              << "\ncomMaxAcc: " << comStateMaxes[1] << std::endl;
+
+
+}
+  
+/*
+ * @function: validateOutputData(TrajVector& traj)
+ * @brief: validation of joint angle output trajectory data
+ * @return: void
+*/
+void validateOutputData(TrajVector& traj) {
+    const double dt = 1.0/TRAJ_FREQ_HZ;
+    double maxJointVel=0;
+    double jointVel;
+    const double jointVelTol = 6.0; // radians/s
+    for (int n=0; n<(traj.size()-1); n++) {
+      for (int j=0; j<HUBO_JOINT_COUNT; j++) {  
+        jointVel = (traj[n+1].angles[j] - traj[n].angles[j])/dt;
+        if (jointVel > jointVelTol) {
+          std::cerr << "change in joint " << j << "is larger than " << jointVelTol << "(" << jointVel << ")\n";
+        }
+        if (jointVel > maxJointVel) maxJointVel = jointVel;
+      }
+    }
+    std::cerr << "maxJntVel: " << maxJointVel << std::endl;
+}
 
 
 void usage(std::ostream& ostr) {
@@ -309,12 +359,17 @@ int main(int argc, char** argv) {
     return 1;
   }
 
+  ach_channel_t zmp_chan;
+  ach_open( &zmp_chan, HUBO_CHAN_ZMP_TRAJ_NAME, NULL );
+  
+
 
   bool show_gui = false;
 
   double fy = 0.085; // half of horizontal separation distance between feet
   double zmpy = 0; // lateral displacement between zmp and ankle
   double fz = 0.05; // foot liftoff height
+  double fx = 0.2; // step length
 
   double lookahead_time = 2.5;
   double startup_time = 1.0;
@@ -400,48 +455,90 @@ int main(int argc, char** argv) {
   // fill up buffers with zmp reference and foot info
 
   // some space to hold zmp reference, foot trajectory, and stance info
-  Eigen::ArrayXd zmpref(total_ticks);
+  Eigen::ArrayXd zmprefX(total_ticks);
+  Eigen::ArrayXd zmprefY(total_ticks);
   Eigen::ArrayXd footz(total_ticks);
+  Eigen::ArrayXXd footx(total_ticks,2);
   std::vector<stance_t> stance(total_ticks);
 
   size_t cur_tick = 0;
 
   double p = 0;
   double p_next = fy-zmpy;
-  stance_t s = DOUBLE_LEFT;
+  double cur_foot_x[2] = { 0, 0 };
+  
+  stance_t s = DOUBLE_LEFT; // start in double left phase
 
-
+  // set variables for startup phase
   for (size_t i=0; i<startup_ticks; ++i) {
     stance[cur_tick] = s;
     footz(cur_tick) = 0;
-    zmpref(cur_tick++) = p;
+    for (int f=0; f<2; ++f) { footx(cur_tick,f) = cur_foot_x[f]; }
+    zmprefX(cur_tick) = 0; // set zmprefX x to zero
+    zmprefY(cur_tick++) = p; // set zmprefY y to zero
   }
 
+  // set variables for walking phase
   for (size_t k=0; k<n_steps; ++k) {
+
+    p = p_next; // set zmp y to sway distance
+    p_next = -p_next; // set next zmp y to sway distance in opposite direction
+    
+    // set variables for double support phase during walking
     for (size_t i=0; i<double_support_ticks; ++i) {
-      double u = double(i)/double(double_support_ticks-1);
-      stance[cur_tick] = s;
-      footz(cur_tick) = 0;
-      zmpref(cur_tick++) = p + sigmoid(u)*(p_next-p);
+      stance[cur_tick] = s; // set stance phase for current tick
+      
+      footz(cur_tick) = 0; // set stance foot z to zero for current tick
+      
+      for (int f=0; f<2; ++f) {
+        footx(cur_tick,f) = cur_foot_x[f]; // set both feet constant here
+      }
+      
+      int stance_foot = stance_foot_table[s];
+      zmprefX(cur_tick) =  cur_foot_x[stance_foot]; // set zmprefX x for current tick to sway distance
+      zmprefY(cur_tick++) = p; // set zmprefY y for current tick to sway distance
     }
-    p = p_next;
-    p_next = -p_next;
-    s = next_stance_table[s];
+    
+    
+    s = next_stance_table[s]; // switch to next (single support) phase
+    // set variables for single support phase during walking
+    
+    int stance_foot = stance_foot_table[s];
+    int swing_foot = 1-stance_foot;
+    real fdist = cur_foot_x[stance_foot] + fx - cur_foot_x[swing_foot];
+
+    
     for (size_t i=0; i<single_support_ticks; ++i) {
-      double u = double(i)/double(single_support_ticks-1);
-      double a = u*2*M_PI;
-      stance[cur_tick] = s;
+      
+      double u = double(i)/double(single_support_ticks-1); // compute portion of step phase
+      double a = u*2*M_PI; // angle in radians the circle has rotated
+      
+      stance[cur_tick] = s; // set stance mode for current tick
+      int stance_foot = stance_foot_table[s];
+      int swing_foot = 1-stance_foot;
+      
       footz(cur_tick) = 0.5*fz*(1 - cos(a)); // the Y component of a cycloid
-      zmpref(cur_tick++) = p;
+      
+      footx(cur_tick, stance_foot) = cur_foot_x[stance_foot];
+      
+      
+      footx(cur_tick, swing_foot) = cur_foot_x[swing_foot] + fdist*(a - sin(a))/(2*M_PI); // the X component of a cycloid
+      zmprefX(cur_tick) = cur_foot_x[stance_foot]; // set zmprefX x for current tick
+      zmprefY(cur_tick++) = p; // set zmprefY y for current tick to sway distance
     }
-    s = next_stance_table[s];
+    s = next_stance_table[s]; // go to next stance phase
+    stance_foot = stance_foot_table[s];
+    cur_foot_x[stance_foot] += fdist;
   }
 
+  // set variables for shutdown phase after finishing walking
   p = 0;
   for (size_t i=0; i<shutdown_ticks; ++i) {
     stance[cur_tick] = s;
     footz(cur_tick) = 0;
-    zmpref(cur_tick++) = p;
+    for (int f=0; f<2; ++f) { footx(cur_tick,f) = cur_foot_x[f]; }
+    zmprefX(cur_tick) = 0.5*(cur_foot_x[0]+cur_foot_x[1]); // set zmprefX x to 0
+    zmprefY(cur_tick++) = p; // set zmprefY y to 0
   }
 
   assert(cur_tick == total_ticks);
@@ -452,21 +549,34 @@ int main(int argc, char** argv) {
   // We are now running our ZMP preview controller to generate a COM 
   // trajectory
 
+  Eigen::Vector3d X(0.0, 0.0, 0.0);
   Eigen::Vector3d Y(0.0, 0.0, 0.0);
-  double e = 0;
-  p = 0;
+  double eX = 0;
+  double eY = 0;
+  double pX = 0;
+  double pY = 0;
 
-  Eigen::MatrixXd com(total_ticks,3);
-  Eigen::ArrayXd zmp(total_ticks);
+  Eigen::MatrixXd comX(total_ticks,3); // x,dx,ddx
+  Eigen::ArrayXd zmpX(total_ticks); // x of zmp
 
+  Eigen::MatrixXd comY(total_ticks,3); // y,dy,ddy
+  Eigen::ArrayXd zmpY(total_ticks); // y of zmp
+
+  // generate COM position for each tick using zmp preview update
   for (size_t i=0; i<total_ticks; ++i) {
-    com.row(i) = Y.transpose();
-    zmp(i) = p;
-    p = preview.update(Y, e, zmpref.block(i, 0, total_ticks-i, 1));
-  }
+    comX.row(i) = X.transpose();
+    comY.row(i) = Y.transpose();
+    zmpX(i) = pX;
+    zmpY(i) = pY;
 
+    pX = preview.update(X, eX, zmprefX.block(i, 0, total_ticks-i, 1));
+    pY = preview.update(Y, eY, zmprefY.block(i, 0, total_ticks-i, 1));
+  }
+  
   TimeStamp t2 = TimeStamp::now();
 
+  //validateCOMTraj(comX, comY);
+ 
   //////////////////////////////////////////////////////////////////////
   // fill up a full body trajectory using COM & footstep info
   // generated above.
@@ -478,12 +588,12 @@ int main(int argc, char** argv) {
   const KinBody& kbody = hplus.kbody;
   HuboPlus::KState state;
   
-  state.body_pos = vec3(0, 0, 0.85);
-  state.body_rot = quat();
+  state.body_pos = vec3(0, 0, 0.85); // body position
+  state.body_rot = quat(); //body rotation (straight forward)
   
-  state.jvalues.resize(kbody.joints.size(), 0.0);
+  state.jvalues.resize(kbody.joints.size(), 0.0); // initialize joint values
   
-  real deg = M_PI/180;
+  real deg = M_PI/180; // conversion from degress to radians
   const JointLookup& jl = hplus.jl;
   state.jvalues[jl("LSR")] =  15*deg;
   state.jvalues[jl("RSR")] = -15*deg;
@@ -496,9 +606,10 @@ int main(int argc, char** argv) {
 
   Transform3 desired[4];
   vec3 desiredCom;
-  
-  desired[0].setTranslation(vec3(0, fy, 0));
-  desired[1].setTranslation(vec3(0, -fy, 0));
+
+  // set initial positions of the feet  
+  desired[0].setTranslation(vec3(0, fy, 0)); // left foot
+  desired[1].setTranslation(vec3(0, -fy, 0)); // right foot
 
   HuboPlus::IKMode mode[4] = { 
     HuboPlus::IK_MODE_FIXED,
@@ -510,18 +621,25 @@ int main(int argc, char** argv) {
   TrajVector traj;
   
   // loop thru trajectory and make full-body joint trajectory
+  desiredCom = vec3(comX(0), comY(0), com_height);
   for (size_t i=0; i<total_ticks; ++i) {
-
+    // loop through stance and swing foot tables
     int stance_foot = stance_foot_table[stance[i]];
     int swing_foot = swing_foot_table[stance[i]];
+    
+    vec3 old[2];
+    for (int f=0; f<2; ++f) { old[f] = desired[f].translation(); }
 
+    // if we're in double support mode
     if (swing_foot < 0) {
 
       mode[0] = HuboPlus::IK_MODE_SUPPORT;
       mode[1] = HuboPlus::IK_MODE_SUPPORT;
-      desired[0].setTranslation(vec3(0,  fy, 0));
-      desired[1].setTranslation(vec3(0, -fy, 0));
+      
+      desired[0].setTranslation(vec3(footx(i, 0),  fy, 0));
+      desired[1].setTranslation(vec3(footx(i, 1), -fy, 0));
 
+      // else if we're in swing mode
     } else {
 
 
@@ -530,14 +648,30 @@ int main(int argc, char** argv) {
       
       const double sy[2] = { 1, -1 };
 
-      desired[stance_foot].setTranslation(vec3(0, sy[stance_foot]*fy, 0));
+      double z = footz[i]; // create swing foot z-direction variable
+
+      vec3 newstance = vec3(footx(i,stance_foot), sy[stance_foot]*fy, 0);
+      vec3 newswing = vec3(footx(i, swing_foot), sy[swing_foot]*fy, z);
+  
+      // set stance foot desired position to (0, fixed-pos from center, 0)
+      desired[stance_foot].setTranslation(newstance);
       
-      double z = footz[i];
-      desired[swing_foot].setTranslation(vec3(0, sy[swing_foot]*fy, z));
+      // set swing foot desired position equal to location set above for tick #i
+      desired[swing_foot].setTranslation(newswing);
 
     }
+    
+    for (int f=0; i && f<2; ++f) {
+      assert( (old[f] - desired[f].translation()).norm() < 0.05 );
+    }
+    
+    // set com desired position
+    vec3 desiredComTmp(desiredCom);
+    desiredCom = vec3(comX(i), comY(i), com_height);
 
-    desiredCom = vec3(0, com(i), com_height);
+    if ((desiredCom - desiredComTmp).norm() > .01 ) {
+      assert( 0 && "Bad desiredCom" );
+    }
 
     bool ikvalid[4];
     
@@ -578,12 +712,17 @@ int main(int argc, char** argv) {
     for (size_t hi=0; hi<hplus.huboJointOrder.size(); ++hi) {
       size_t ji = hplus.huboJointOrder[hi];
       if (ji != size_t(-1)) {
-	cur.angles[hi] = state.jvalues[ji];
+	      cur.angles[hi] = state.jvalues[ji];
       }
       cur.stance = stance[i];
       for (int a=0; a<3; ++a) {
-	double foffset = (a == 0) ? desired[stance_foot].translation().y() : 0;
-	cur.com[1][a] = com(i,a) - foffset;
+        // Right now we only need to subtract off a foot offset because foots are not
+        // turning in yaw. When we start yawing foots we need to a proper linear transformation
+        // Question: how to sanity check this???
+        double foffsetY = (a == 0) ? desired[stance_foot].translation().y() : 0;
+        double foffsetX = (a == 0) ? desired[stance_foot].translation().x() : 0;
+        cur.com[1][a] = comY(i,a) - foffsetY;
+        cur.com[0][a] = comX(i,a) - foffsetX;
       }
       cur.com[2][0] = com_height;
       
@@ -592,6 +731,8 @@ int main(int argc, char** argv) {
     traj.push_back(cur);
 
   }
+
+  //validateOutputData(traj);
 
   //////////////////////////////////////////////////////////////////////
   // ach_put goes after this line
@@ -610,6 +751,22 @@ int main(int argc, char** argv) {
   std::cerr << "Total time:                               " << total_time << "s\n";
   std::cerr << "Execution time:                           " << sim_time << "s\n";
   std::cerr << "Speedup over real-time:                   " << sim_time/total_time << "\n";
+
+  zmp_traj_t trajectory;
+  memset( &trajectory, 0, sizeof(trajectory) );
+
+  int N;
+  if( (int)traj.size() > MAX_TRAJ_SIZE )
+    N = MAX_TRAJ_SIZE;
+  else
+    N = (int)traj.size();
+
+  trajectory.count = N;
+  for(int i=0; i<N; i++)
+    memcpy( &(trajectory.traj[i]), &(traj[i]), sizeof(zmp_traj_element_t) );
+
+  ach_put( &zmp_chan, &trajectory, sizeof(trajectory) );
+  fprintf(stdout, "Message put\n");
 
   if (show_gui) {
 

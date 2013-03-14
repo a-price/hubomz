@@ -263,12 +263,14 @@ HuboPlus::HuboPlus(const std::string& filename):
 
 
   const char* hnames[42] = {
-    "RHY", "RHR", "RHP", "RKP", "RAP", "RAR",
-    "LHY", "LHR", "LHP", "LKP", "LAP", "LAR",
-    "RSP", "RSR", "RSY", "REP", "RWY", 0, "RWP",
-    "LSP", "LSR", "LSY", "LEP", "LWY", 0, "LWP",
-    0, 0, 0,
     "HPY",
+    0, 0, 0,
+    "LSP", "LSR", "LSY", "LEP", "LWY", 0, "LWP",
+    "RSP", "RSR", "RSY", "REP", "RWY", 0, "RWP",
+    0,
+    "LHY", "LHR", "LHP", "LKP", "LAP", "LAR",
+    0,
+    "RHY", "RHR", "RHP", "RKP", "RAP", "RAR",
     0, 0, 0, 0, 0,
     0, 0, 0, 0, 0,
   };
