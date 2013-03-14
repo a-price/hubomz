@@ -106,7 +106,7 @@ public:
     for (size_t hi=0; hi<hplus.huboJointOrder.size(); ++hi) {
       size_t ji = hplus.huboJointOrder[hi];
       if (ji != size_t(-1)) {
-	state.jvalues[ji] = cur.angles[hi];
+      	state.jvalues[ji] = cur.angles[hi];
       }
     }
     
@@ -250,11 +250,53 @@ public:
     
   }
 
-  
-
-
-
 };
+
+// validation of COM output trajectory data
+void validateCOMTraj(Eigen::MatrixXd& comX, Eigen::MatrixXd& comY) {
+    const double dt = 1.0/TRAJ_FREQ_HZ;
+    double comVel, comAcc;
+    Eigen::Matrix3d comStateDiffs;
+    double comStateMaxes[] = {0.0, 0.0, 0.0};
+    const double comStateTol[] = {2.0, 5.0}; // m/s, m/s^2, m/s^3
+    for (int n=0; n<(comX.rows()-1); n++) {
+      // Calculate COM vel and acc norms from x and y components
+      comVel = sqrt((comX(n+1,0)-comX(n,0))*(comX(n+1,0)-comX(n,0)) + (comY(n+1,0)-comY(n,0))*(comY(n+1,0)-comY(n,0)))/dt;
+      comAcc = sqrt((comX(n+1,1)-comX(n,1))*(comX(n+1,1)-comX(n,1)) + (comY(n+1,1)-comY(n,1))*(comY(n+1,1)-comY(n,1)))/dt;
+      // Update max state values
+      if (comVel > comStateMaxes[0]) comStateMaxes[0] = comVel;
+      if (comAcc > comStateMaxes[1]) comStateMaxes[1] = comAcc;
+      // Check if any are over limit
+      if (comVel > comStateTol[0]) {
+          std::cerr << "COM velocity sample " << n+1 << "is larger than " << comStateTol[0] << "(" << comVel << ")\n";
+      }
+      if (comAcc > comStateTol[1]) {
+          std::cerr << "COM acceleration of sample " << n+1 << "is larger than " << comStateTol[1] << "(" << comAcc << ")\n";
+      }
+    }
+    std::cerr << "comMaxVel: " << comStateMaxes[0]
+              << "\ncomMaxAcc: " << comStateMaxes[1] << std::endl;
+
+
+}
+  
+// validation of joint angle output trajectory data
+void validateOutputData(TrajVector& traj) {
+    const double dt = 1.0/TRAJ_FREQ_HZ;
+    double maxJointVel=0;
+    double jointVel;
+    const double jointVelTol = 6.0; // radians/s
+    for (int n=0; n<(traj.size()-1); n++) {
+      for (int j=0; j<HUBO_JOINT_COUNT; j++) {  
+        jointVel = (traj[n+1].angles[j] - traj[n].angles[j])/dt;
+        if (jointVel > jointVelTol) {
+          std::cerr << "change in joint " << j << "is larger than " << jointVelTol << "(" << jointVel << ")\n";
+        }
+        if (jointVel > maxJointVel) maxJointVel = jointVel;
+      }
+    }
+    std::cerr << "maxJntVel: " << maxJointVel << std::endl;
+}
 
 
 void usage(std::ostream& ostr) {
@@ -415,7 +457,6 @@ int main(int argc, char** argv) {
 
   double p = 0;
   double p_next = fy-zmpy;
-  double px_next = fx;
   double cur_foot_x[2] = { 0, 0 };
   
   stance_t s = DOUBLE_LEFT; // start in double left phase
@@ -488,7 +529,6 @@ int main(int argc, char** argv) {
     stance[cur_tick] = s;
     footz(cur_tick) = 0;
     for (int f=0; f<2; ++f) { footx(cur_tick,f) = cur_foot_x[f]; }
-    int stance_foot = stance_foot_table[s];
     zmprefX(cur_tick) = 0.5*(cur_foot_x[0]+cur_foot_x[1]); // set zmprefX x to 0
     zmprefY(cur_tick++) = p; // set zmprefY y to 0
   }
@@ -518,15 +558,17 @@ int main(int argc, char** argv) {
   for (size_t i=0; i<total_ticks; ++i) {
     comX.row(i) = X.transpose();
     comY.row(i) = Y.transpose();
-    zmpX(i) = p;
-    zmpY(i) = p;
+    zmpX(i) = pX;
+    zmpY(i) = pY;
 
     pX = preview.update(X, eX, zmprefX.block(i, 0, total_ticks-i, 1));
     pY = preview.update(Y, eY, zmprefY.block(i, 0, total_ticks-i, 1));
   }
   
   TimeStamp t2 = TimeStamp::now();
-  
+
+  //validateCOMTraj(comX, comY);
+ 
   //////////////////////////////////////////////////////////////////////
   // fill up a full body trajectory using COM & footstep info
   // generated above.
@@ -681,6 +723,8 @@ int main(int argc, char** argv) {
     traj.push_back(cur);
 
   }
+
+  //validateOutputData(traj);
 
   //////////////////////////////////////////////////////////////////////
   // ach_put goes after this line
