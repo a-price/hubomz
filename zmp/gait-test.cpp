@@ -22,7 +22,7 @@ int main() {
 	step_traj_t step_traj = step_times(steps(n_steps, true), timer);
 
 	//////////////////////////////////////////////////////////////////////
-	// check
+	// print out, pipe to matlab/timing.txt and run matlab/zmp_plot.m
 	size_t eric_ticks = step_traj.stance.size();
 	EIGEN_V_VEC2D eric_zmpref = step_traj.zmpref;
 	std::vector<stance_t> eric_stance = step_traj.stance;

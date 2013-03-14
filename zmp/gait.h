@@ -20,8 +20,8 @@ struct step_traj_t {
 
 struct step_timer_t {
 	step_timer_t()
-		: single_support_time(0),
-		  double_support_time(0),
+		: single_support_time(0.70),
+		  double_support_time(0.05),
 		  startup_time(1.0),
 		  shutdown_time(1.0),
 		  duty_factor(0),
