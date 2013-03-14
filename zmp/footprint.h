@@ -3,11 +3,11 @@
 
 #include <vector>
 
-struct Footprint {
+class Footprint {
   double x;
   double y;
   double theta;
-  bool is_left;
+  stance_t is_left;
 
   /* Footprint(double x, double y, double theta, double is_left); */
   /* Footprint(); */
@@ -27,7 +27,7 @@ std::vector<Footprint> walkCircle(double radius, /// The radius of the circle to
                              double max_step_angle, /// The maximum angle between successive steps
                              Footprint* init_left, /// The position the left foot starts in
                              Footprint* init_right, /// The position the right foot starts in
-                             bool left_is_stance_foot /// Which foot the robot will be starting off standing on
+                             stance_t stance_handedness /// Which foot the robot will be starting off standing on
     );
 
 #endif   /* ----- #ifndef FOOTPRINT_INC  ----- */

@@ -1107,6 +1107,28 @@ namespace fakerave {
 
   }
 
+  real KinBody::totalMass() const {
+
+    real totalMass = 0;
+
+    for (size_t i=0; i<bodies.size(); ++i) {
+      if (bodies[i].haveMass) {
+        totalMass += bodies[i].mass;
+      }
+    }
+
+    return totalMass;
+
+  }
+    
+  void KinBody::adjustTotalMass(real fraction) {
+
+    for (size_t i=0; i<bodies.size(); ++i) {
+      bodies[i].mass *= fraction;
+    }
+
+  }
+
   vec3 KinBody::com(const Transform3Array& xforms) const {
     
     assert(xforms.size() == bodies.size());
@@ -1269,8 +1291,6 @@ namespace fakerave {
     const Transform3 cur_inv = cur.inverse();
     const Transform3 pre_inv = pre.inverse();
 
-    
-    const Transform3 post = cur_inv * pre * cur;
     const Transform3 post_inv = cur_inv * pre_inv * cur;
 
     b.xform = pre * b.xform;
@@ -1343,5 +1363,6 @@ namespace fakerave {
     j.anchor += xform.rotInv() * world_diff;
     
   }
+
 
 }

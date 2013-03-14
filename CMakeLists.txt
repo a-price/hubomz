@@ -16,3 +16,15 @@ if (QT_FOUND)
 add_subdirectory(calibrate)
 endif()
 
+
+#
+# TESTING
+#
+
+enable_testing()
+add_subdirectory(gtest-1.6.0)
+
+add_executable(footprint-test zmp/footprint-test.cpp zmp/footprint.cpp )
+target_link_libraries(footprint-test gtest gtest_main)
+
+add_test(footprint-test footprint-test)

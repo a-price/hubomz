@@ -47,3 +47,10 @@ Now, you can run the software, for instance:
     ./walkdemo ../myhubo.kinbody.xml
 
 
+Tests
+=====
+
+A few tests can automatically be run. After you've successfully run `make`, do:
+
+    make
+    ctest

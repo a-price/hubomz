@@ -18,9 +18,11 @@ enum stance_t {
 
 typedef struct zmp_traj_element {
   double angles[HUBO_JOINT_COUNT];
-  double com[3][3]; // XYZ pos/vel/accel in frame of stance foot
-  double zmp[2]; // XY of zmp
-  double fy[2]; // right/left predicted normal forces
+  // XYZ pos/vel/accel in frame of stance ANKLE
+  // (translated up ~10cm from foot -- i.e. z coord is 10cm less)
+  double com[3][3];
+  double zmp[2]; // XY of zmp in frame of stance ANKLE
+  double forces[2][3]; // right/left predicted normal forces
   double torque[2][3]; // right/left predicted moments XYZ
   // TODO: add orientation for IMU
   stance_t stance;

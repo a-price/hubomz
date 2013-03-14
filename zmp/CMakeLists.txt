@@ -9,10 +9,8 @@ if (${HAVE_HUBO_ACH})
 set(zmpdemo_libs ${zmpdemo_libs} ach)
 endif()
 
-
 target_link_libraries(zmpdemo ${zmpdemo_libs})
 
 
 add_executable(gaittest gait-test.cpp gait.cpp)
 target_link_libraries(zmpdemo hubomz mzcommon ${OPENGL_LIBRARY} ${GLUT_LIBRARY} expat ach)
-

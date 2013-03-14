@@ -269,8 +269,8 @@ namespace glstuff {
                          const vec3_t<real>& p0,
                          const vec3_t<real>& p1,
                          real cyl_rad,
-                         real head_rad, // defaults to 2*cyl_rad
-                         real head_len, // defaults to 2*cyl_rad
+                         real head_rad=0, // defaults to 2*cyl_rad
+                         real head_len=0, // defaults to 2*cyl_rad
                          int slices=DEFAULT_SLICES,
                          int cstacks=DEFAULT_CSTACKS,
                          int hstacks=1,
