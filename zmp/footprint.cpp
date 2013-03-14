@@ -15,7 +15,7 @@ vector<Footprint> walkLine(double dist, double width, double max_step_length) {
   // Solve simple equation
   const int K = int(ceil(dist/max_step_length) + 1e-10);
   const double L = dist/K;
-  const int N = K+4;
+  const int N = K+3;
   vector<Footprint> res(N);
 
   // Do all steps
