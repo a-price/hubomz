@@ -252,7 +252,11 @@ public:
 
 };
 
-// validation of COM output trajectory data
+/*
+ * @function: validateCOMTraj(Eigen::MatrixXd& comX, Eigen::MatrixXd& comY)
+ * @brief: validation of COM output trajectory data
+ * @return: void
+*/
 void validateCOMTraj(Eigen::MatrixXd& comX, Eigen::MatrixXd& comY) {
     const double dt = 1.0/TRAJ_FREQ_HZ;
     double comVel, comAcc;
@@ -280,7 +284,11 @@ void validateCOMTraj(Eigen::MatrixXd& comX, Eigen::MatrixXd& comY) {
 
 }
   
-// validation of joint angle output trajectory data
+/*
+ * @function: validateOutputData(TrajVector& traj)
+ * @brief: validation of joint angle output trajectory data
+ * @return: void
+*/
 void validateOutputData(TrajVector& traj) {
     const double dt = 1.0/TRAJ_FREQ_HZ;
     double maxJointVel=0;
