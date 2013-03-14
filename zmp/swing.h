@@ -18,6 +18,7 @@ void swingSimpleCycloid( double _x0, double _y0, double _z0,
                          double _x1, double _y1, double _z1,
                          int _count,
                          bool _isLeft,
+			 double _maxheight,
                          double _pos[N][3],
                          double _yaw[N] );
 
@@ -26,6 +27,7 @@ void swingEllipse( double _x0, double _y0, double _z0,
                    double _x1, double _y1, double _z1,
                    int _count,
                    bool _isLeft,
+			double _maxheight,
                    double _pos[N][3],
                    double _yaw[N] );
 
@@ -34,6 +36,7 @@ void swing2Cycloids( double _x0, double _y0, double _theta0,
                      double _x1, double _y1, double _theta1,
                      int _count, 
                      bool _isLeft,
+			double _maxheight,
                      double _pos[N][3],
                      double _yaw[N] );
 
@@ -42,6 +45,7 @@ void swingSimpleBezier( double _x0, double _y0, double _theta0,
                         double _x1, double _y1, double _theta1,
                         int _count, 
                         bool _isLeft,
+			double _maxheight,
                         double _pos[N][3],
                         double _yaw[N] );
 
