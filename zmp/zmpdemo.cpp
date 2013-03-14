@@ -475,6 +475,8 @@ int main(int argc, char** argv) {
     }
   }
 
+  if (!hubofile) { usage(std::cerr); exit(1); }
+
   HuboPlus hplus(hubofile);
 
   const double& l6 = hplus.footAnkleDist;
