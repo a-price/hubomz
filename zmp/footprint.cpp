@@ -46,7 +46,7 @@ vector<Footprint> walkCircle(double radius,
         Eigen::Translation<double, 2>(stance_foot->x, stance_foot->y)
         * Eigen::Rotation2D<double>(stance_foot->theta)
         * Eigen::Translation<double, 2>(0, left_is_stance_foot?-width:width);
-    
+
     // minimize K subject to conditions, compute resulting dTheta
     int K = ceil(distance / max_step_angle * abs((radius - width) / radius));
     double dTheta = distance / (K * radius);
@@ -54,10 +54,10 @@ vector<Footprint> walkCircle(double radius,
         K = ceil(distance / abs(radius) * max_step_angle);
         dTheta = distance / (K * radius);
     }
-    
+
     // init results list
     vector<Footprint> result;
-    
+
     // fill out results
     for(int i = 2; i < K + 1; i++) {
         double theta_i = dTheta * (i - 1);
@@ -66,7 +66,7 @@ vector<Footprint> walkCircle(double radius,
                                        radius - ((radius - width) * cos(theta_i)),
                                        theta_i,
                                        true));
-        } 
+        }
         else {
             result.push_back(Footprint((radius + width) * sin(theta_i),
                                        radius - ((radius + width) * cos(theta_i)),
@@ -86,7 +86,7 @@ vector<Footprint> walkCircle(double radius,
                                    radius - ((radius - width) * cos(theta_last)),
                                    theta_last,
                                    true));
-    } 
+    }
     else {
         result.push_back(Footprint((radius - width) * sin(theta_last),
                                    radius - ((radius - width) * cos(theta_last)),
@@ -98,7 +98,7 @@ vector<Footprint> walkCircle(double radius,
                                    false));
     }
     result.insert(result.begin(), Footprint(*stance_foot));
-    
+
     // run through results transforming them back into the original frame of reference
     for(std::vector<Footprint>::iterator it = result.begin(); it < result.end(); it++) {
         Eigen::Vector2d t(it->x, it->y);
@@ -107,11 +107,11 @@ vector<Footprint> walkCircle(double radius,
         it->y = t.y();
         it->theta = it->theta + stance_foot->theta;
     }
-    
+
     // return the result
     return result;
 }
-                             
+
 
 int main() {
     double radius = 1;
@@ -133,7 +133,7 @@ int main() {
                             foot_l,
                             foot_r,
                             stance_is_left);
-    
+
     for(std::vector<Footprint>::iterator it = footprints.begin(); it < footprints.end(); it++) {
         // std::cout << "[" << it->x << ", " << it->y << " @ " << it->theta << "]" << std::endl;
         std::cout
