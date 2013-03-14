@@ -262,6 +262,9 @@ HuboPlus::HuboPlus(const std::string& filename):
   real jy = kc.leg_l2;
   real jz = kc.leg_l1 + kc.leg_l3 + kc.leg_l4 + kc.leg_l5 + kc.leg_l6;
 
+  footAnkleDist = kc.leg_l6;
+  std::cerr << "FOOT ANKLE DIST = " << footAnkleDist << "\n";
+
   size_t lfoot = bl("Body_LAR");
   size_t rfoot = bl("Body_RAR");
   vec3 t0 = xforms[lfoot].transformInv(vec3(0, jy, -jz));
