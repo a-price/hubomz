@@ -369,7 +369,11 @@ int main(int argc, char** argv) {
   double fy = 0.085; // half of horizontal separation distance between feet
   double zmpy = 0; // lateral displacement between zmp and ankle
   double fz = 0.05; // foot liftoff height
-  double fx = 0.0; // step length
+
+  double circle_max_step_length = 0.2; // maximum distance between steps
+  double circle_max_step_angle = M_PI / 12.0; // maximum angle between steps
+  double circle_distance = 5.0; // distance to go along circle
+  double circle_radius = 2.0; // radius of circle to move in
 
   double lookahead_time = 2.5;
   double startup_time = 1.0;
@@ -425,10 +429,6 @@ int main(int argc, char** argv) {
   }
 
   size_t num_lookahead = seconds_to_ticks(lookahead_time); // lookahead window size
-  size_t startup_ticks = seconds_to_ticks(startup_time); // hold ZMP at center for 1s at start
-  size_t shutdown_ticks = seconds_to_ticks(shutdown_time); // hold ZMP at center for 1s at end
-  size_t double_support_ticks = seconds_to_ticks(double_support_time); // .05s of double support each step
-  size_t single_support_ticks = seconds_to_ticks(single_support_time); // .70s of single support each step
 
   const char* hubofile = 0;
 
@@ -444,9 +444,6 @@ int main(int argc, char** argv) {
 
   HuboPlus hplus(hubofile);
 
-  size_t step_ticks = double_support_ticks + single_support_ticks;
-  size_t total_ticks = startup_ticks + n_steps * step_ticks + shutdown_ticks;
-
   double zmp_R = 1e-10; // gain for ZMP controller
   double zmp_dt = 1.0/TRAJ_FREQ_HZ; // delta t for ZMP preview controller
   
@@ -456,28 +453,123 @@ int main(int argc, char** argv) {
 
   //////////////////////////////////////////////////////////////////////
   // fill up buffers with zmp reference and foot info
-
-  // some space to hold zmp reference, foot trajectory, and stance info
-  Eigen::ArrayXd zmprefX(total_ticks);
-  Eigen::ArrayXd zmprefY(total_ticks);
-  Eigen::ArrayXd footz(total_ticks);
-  Eigen::ArrayXXd footx(total_ticks,2);
-  std::vector<stance_t> stance(total_ticks);
-
-  size_t cur_tick = 0;
-
-  double p = 0;
-  double p_next = fy-zmpy;
-
-  double cur_foot_x[2] = { 0, 0 };
   
-  stance_t s = DOUBLE_LEFT; // start in double left phase
+  stance_t initial_stance = DOUBLE_RIGHT;
+  Footprint* initial_foot_L = new Footprint(0, fy, 0, true);
+  Footprint* initial_foot_R = new Footprint(0, -fy, 0, false);
+
+  assert(initial_stance == DOUBLE_RIGHT || initial_stance == DOUBLE_LEFT);
+  
+  // foot trajectory
+  std::vector<Footprint> future_steps;
+  future_steps = walkCircle(circle_radius,
+                            circle_distance,
+                            fy,
+                            circle_max_step_length,
+                            circle_max_step_angle,
+                            initial_foot_L,
+                            initial_foot_R,
+                            initial_stance);
+
+  // state information to let us iterate
+  Footprint* foot_L_cur = initial_foot_L;
+  Footprint* foot_L_next = initial_foot_L;
+  Footprint* foot_R_cur = initial_foot_R;
+  Footprint* foot_R_next = initial_foot_R;
+
+  step_timer_t timer;
+  timer.single_support_time = single_support_time;
+  timer.double_support_time = double_support_time;
+  timer.startup_time = startup_time;
+  timer.shutdown_time = shutdown_time;
+  
+  // outputs
+  // and the parts that are actually important:
+  std::vector<stance_t> stance(total_ticks); // what stance we want to be in at each tick (for IK gains scheduling)
+  std::vector<Eigen::Vector2d> zmpref;       // where the zmp is at each tick
+  std::vector<Eigen::Vector3d> foot_L_pos;    // where the left foot is at each tick
+  std::vector<double> foot_L_rot;
+  std::vector<Eigen::Vector3d> foot_R_pos;    // where the right foot is at each tick
+  std::vector<double> foot_R_rot;
+
+  // and now actual calculation
+  
+  size_t startup_ticks = timer_compute_startup();
+  for(; cur_tick < startup_ticks; cur_tick++) {
+    stance.push_back(initial_stance);
+    zmpref.push_back((Eigen::Vector2d(foot_L_cur->x, foot_L_cur->y) + Eigen::Vector2d(foot_L_cur->x, foot_L_cur->y)) / 2.0);
+    foot_L_pos.push_back(foot_L_cur->x, foot_L_cur->y, 0);
+    foot_R_pos.push_back(foot_R_cur->x, foot_R_cur->y, 0);
+    foot_L_rot.push_back(foot_L_cur->theta);
+    foot_R_rot.push_back(foot_R_cur->theta);
+  }
+  for(std::vector<Footprint>::iterator step = future_steps.begin(); step != future_steps.begin(); step++) {
+    Eigen::Vector2d step_start;
+    Eigen::Vector2d step_next;
+    Eigen::Vector2d stance;
+    double dist;
+    double theta;
+
+    if (step->is_left) {
+      foot_L_next = *step;
+      step_cur = Eigen::Vector2d(foot_L_cur.x, foot_L_cur.y);
+      step_next = Eigen::Vector2d(foot_L_next.x, foot_L_next.y);
+      theta = foot_L_next.theta - foot_L_cur.theta;
+      stance = Eigen::Vector2d(foot_R_cur.x, foot_R_cur.y);
+    }
+    else {
+      foot_R_next = *step;
+      step_cur = Eigen::Vector2d(foot_R_cur.x, foot_R_cur.y);
+      step_next = Eigen::Vector2d(foot_R_next.x, foot_R_next.y);
+      theta = foot_R_next.theta - foot_R_cur.theta;
+      stance = Eigen::Vector2d(foot_L_cur.x, foot_L_cur.y);
+    }
+
+    dist = (step_next - step_cur).norm();
+    size_t double_ticks = timer.compute_double(dist, theta, fz);
+    size_t single_ticks = timer.compute_double(dist, theta, fz);
+    for(size_t t = 0; t < double_ticks; t++) {
+      stance.push_back(step->is_left ? DOUBLE_RIGHT : DOUBLE_LEFT);
+      foot_L_pos.push_back(foot_L_cur->x, foot_L_cur->y, 0);
+      foot_R_pos.push_back(foot_R_cur->x, foot_R_cur->y, 0);
+      foot_L_rot.push_back(foot_L_cur->theta);
+      foot_R_rot.push_back(foot_R_cur->theta);
+
+      double u = double(t)/double(double_ticks-1);
+      double sig = sigmoid(u);
+      zmpref.push_back(step_cur * (1.0-sig) + step_next * sig);
+    }
+    for(size_t t = 0; t < single_ticks; t++) {
+      stance.push_back(step->is_left ? SINGLE_RIGHT : SINGLE_LEFT);
+      zmpref.push_back(stance);
+      foot_L_pos.push_back(foot_L_cur->x, foot_L_cur->y, 0);
+      foot_R_pos.push_back(foot_R_cur->x, foot_R_cur->y, 0);
+      foot_L_rot.push_back(foot_L_cur->theta);
+      foot_R_rot.push_back(foot_R_cur->theta);
+    }
+
+    if (step->is_left) foot_L_cur = *step;
+    else foot_R_cur = *step;
+  }
+  size_t shutdown_ticks = timer.compute_shutdown();
+  for(; cur_tick < total_ticks; cur_tick++) {
+  }
+  
+  
+
+
+
+
+
+
 
   // set variables for startup phase
   for (size_t i=0; i<startup_ticks; ++i) {
-    stance[cur_tick] = s;
+    stance[cur_tick] = current_stance;
     footz(cur_tick) = 0;
-    for (int f=0; f<2; ++f) { footx(cur_tick,f) = cur_foot_x[f]; }
+    for (int f=0; f<2; ++f) {
+      footx(cur_tick,f) = cur_foot_x[f];
+    }
     zmprefX(cur_tick) = 0; // set zmprefX x to zero
     zmprefY(cur_tick++) = p; // set zmprefY y to zero
   }
@@ -828,3 +920,7 @@ int main(int argc, char** argv) {
 
 }
 
+
+// Local Variables:
+// c-basic-offset: 2
+// End:

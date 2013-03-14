@@ -36,9 +36,10 @@ vector<Footprint> walkCircle(double radius,
                              double max_step_angle,
                              Footprint* init_left,
                              Footprint* init_right,
-                             bool left_is_stance_foot) {
+                             stance_t stance_handedness) {
     // select stance foot, fill out transforms
     Footprint* stance_foot;
+    bool left_is_stance_foot = stance_handedness == SINGLE_LEFT || stance_handedness == DOUBLE_LEFT;
     if (left_is_stance_foot) stance_foot = init_left;
     else stance_foot = init_right;
     Eigen::Transform<double,2,Eigen::Affine> T_stance_to_world;
@@ -122,7 +123,7 @@ int main() {
 
     Footprint* foot_l = new Footprint(0, width, 0, true);
     Footprint* foot_r = new Footprint(0, -width, 0, false);
-    bool stance_is_left = false;        // start on right foot
+    stance_t stance_handedness = SINGLE_LEFT;        // start on right foot
     std::vector<Footprint> footprints;
 
     footprints = walkCircle(radius,
@@ -132,7 +133,7 @@ int main() {
                             max_angle,
                             foot_l,
                             foot_r,
-                            stance_is_left);
+                            stance_handedness);
     
     for(std::vector<Footprint>::iterator it = footprints.begin(); it < footprints.end(); it++) {
         // std::cout << "[" << it->x << ", " << it->y << " @ " << it->theta << "]" << std::endl;
