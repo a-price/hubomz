@@ -28,6 +28,7 @@ const stance_t next_stance_table[4] = {
   DOUBLE_LEFT
 };
 
+
 class ZmpDemo: public MzGlutApp {
 public:
 
@@ -264,9 +265,11 @@ void usage(std::ostream& ostr) {
     "OPTIONS:\n"
     "\n"
     "  -g, --show-gui                    Show a GUI after computing trajectories.\n"
+    "  -A, --use-ach                     Send trajectory via ACH after computing.\n"
     "  -h, --com-height=NUMBER           Height of the center of mass\n"
     "  -f, --foot-y=NUMBER               Half-distance between feet\n"
     "  -L, --foot-liftoff=NUMBER         Vertical liftoff distance of swing foot\n"
+    "  -x, --step-distance=NUMBER        Forward distance between front & rear foot\n"
     "  -z, --zmp-y=NUMBER                Lateral distance from ankle to ZMP\n"
     "  -l, --lookahead-time=NUMBER       Lookahead window for ZMP preview controller\n"
     "  -p, --startup-time=NUMBER         Initial time spent with ZMP stationary\n"
@@ -309,17 +312,14 @@ int main(int argc, char** argv) {
     return 1;
   }
 
-  ach_channel_t zmp_chan;
-  ach_open( &zmp_chan, HUBO_CHAN_ZMP_TRAJ_NAME, NULL );
-  
-
 
   bool show_gui = false;
+  bool use_ach = false;
 
   double fy = 0.085; // half of horizontal separation distance between feet
   double zmpy = 0; // lateral displacement between zmp and ankle
   double fz = 0.05; // foot liftoff height
-  double fx = 0.2; // step length
+  double fx = 0.0; // step length
 
   double lookahead_time = 2.5;
   double startup_time = 1.0;
@@ -333,8 +333,10 @@ int main(int argc, char** argv) {
 
   const struct option long_options[] = {
     { "show-gui",            no_argument,       0, 'g' },
+    { "use-ach",             no_argument,       0, 'A' },
     { "foot-y",              required_argument, 0, 'f' },
     { "foot-liftoff",        required_argument, 0, 'L' },
+    { "step-distance",       required_argument, 0, 'x' },
     { "zmp-y",               required_argument, 0, 'z' },
     { "com-height",          required_argument, 0, 'h' },
     { "lookahead-time",      required_argument, 0, 'l' },
@@ -348,13 +350,14 @@ int main(int argc, char** argv) {
     { 0,                     0,                 0,  0  },
   };
 
-  const char* short_options = "gf:L:z:h:l:p:n:d:s:c:a:H";
+  const char* short_options = "gAf:L:z:h:l:p:n:d:s:c:a:H";
 
   int opt, option_index;
 
   while ( (opt = getopt_long(argc, argv, short_options, long_options, &option_index)) != -1 ) {
     switch (opt) {
     case 'g': show_gui = true; break;
+    case 'A': use_ach = true; break;
     case 'f': fy = getdouble(optarg); break;
     case 'L': fz = getdouble(optarg); break;
     case 'z': zmpy = getdouble(optarg); break;
@@ -415,7 +418,7 @@ int main(int argc, char** argv) {
 
   double p = 0;
   double p_next = fy-zmpy;
-  double px_next = fx;
+
   double cur_foot_x[2] = { 0, 0 };
   
   stance_t s = DOUBLE_LEFT; // start in double left phase
@@ -488,7 +491,6 @@ int main(int argc, char** argv) {
     stance[cur_tick] = s;
     footz(cur_tick) = 0;
     for (int f=0; f<2; ++f) { footx(cur_tick,f) = cur_foot_x[f]; }
-    int stance_foot = stance_foot_table[s];
     zmprefX(cur_tick) = 0.5*(cur_foot_x[0]+cur_foot_x[1]); // set zmprefX x to 0
     zmprefY(cur_tick++) = p; // set zmprefY y to 0
   }
@@ -518,9 +520,8 @@ int main(int argc, char** argv) {
   for (size_t i=0; i<total_ticks; ++i) {
     comX.row(i) = X.transpose();
     comY.row(i) = Y.transpose();
-    zmpX(i) = p;
-    zmpY(i) = p;
-
+    zmpX(i) = pX;
+    zmpY(i) = pY;
     pX = preview.update(X, eX, zmprefX.block(i, 0, total_ticks-i, 1));
     pY = preview.update(Y, eY, zmprefY.block(i, 0, total_ticks-i, 1));
   }
@@ -630,30 +631,49 @@ int main(int argc, char** argv) {
 			   com_ik_ascl, 0, ikvalid );
 
     if (!ok) {
+
+      Transform3 actual[4];
+      vec3 dp[4], dq[4];
+
       kbody.transforms(state.jvalues, xforms);
-      std::cerr << "IK FAILURE!\n\n";
-      std::cerr << "  body: " << state.xform() << "\n\n";
-      for (int i=0; i<4; ++i) { 
+
+      for (int i=0; i<4; ++i) {
+
 	if (mode[i] != HuboPlus::IK_MODE_FIXED &&
 	    mode[i] != HuboPlus::IK_MODE_FREE) {
-
-	  Transform3 fk = kbody.manipulatorFK(xforms, i);
+	  
+	  actual[i] = kbody.manipulatorFK(xforms, i);
 	  if (mode[i] == HuboPlus::IK_MODE_WORLD || 
 	      mode[i] == HuboPlus::IK_MODE_SUPPORT) {
-	    fk = state.xform() * fk;
+	    actual[i] = state.xform() * actual[i];
 	  }
-	  vec3 dp, dq;
-	  deltaTransform(desired[i], fk, dp, dq);
-	  std::cerr << "  " << kbody.manipulators[i].name << ":\n";
-	  std::cerr << "    valid:   " << ikvalid[i] << "\n";
-	  std::cerr << "    desired: " << desired[i] << "\n";
-	  std::cerr << "    actual:  " << fk << "\n";
-	  std::cerr << "    dp:      " << dp << " with norm " << dp.norm() << "\n";
-	  std::cerr << "    dq:      " << dq << " with norm " << dq.norm() << "\n";
-	  std::cerr << "\n";
+
+	  deltaTransform(desired[i], actual[i], dp[i], dq[i]);
+
+	  // TODO: allow feet far away from ground to have IK failures
+
 	}
+
       }
-      exit(1);
+ 
+      if (!ok) {
+	std::cerr << "IK FAILURE!\n\n";
+	std::cerr << "  body: " << state.xform() << "\n\n";
+	for (int i=0; i<4; ++i) { 
+	  if (mode[i] != HuboPlus::IK_MODE_FIXED &&
+	      mode[i] != HuboPlus::IK_MODE_FREE) {
+	    std::cerr << "  " << kbody.manipulators[i].name << ":\n";
+	    std::cerr << "    valid:   " << ikvalid[i] << "\n";
+	    std::cerr << "    desired: " << desired[i] << "\n";
+	    std::cerr << "    actual:  " << actual[i] << "\n";
+	    std::cerr << "    dp:      " << dp[i] << " with norm " << dp[i].norm() << "\n";
+	    std::cerr << "    dq:      " << dq[i] << " with norm " << dq[i].norm() << "\n";
+	    std::cerr << "\n";
+	  }
+	}
+	exit(1);
+      }
+
     }
 
     zmp_traj_element_t cur;
@@ -665,17 +685,27 @@ int main(int argc, char** argv) {
 	      cur.angles[hi] = state.jvalues[ji];
       }
       cur.stance = stance[i];
-      for (int a=0; a<3; ++a) {
-        // Right now we only need to subtract off a foot offset because foots are not
-        // turning in yaw. When we start yawing foots we need to a proper linear transformation
-        // Question: how to sanity check this???
-        double foffsetY = (a == 0) ? desired[stance_foot].translation().y() : 0;
-        double foffsetX = (a == 0) ? desired[stance_foot].translation().x() : 0;
-        cur.com[1][a] = comY(i,a) - foffsetY;
-        cur.com[0][a] = comX(i,a) - foffsetX;
+    }
+
+    Transform3 stanceInv = desired[stance_foot].inverse();
+
+    vec3 zmp(zmprefX(i), zmprefY(i), 0);
+    zmp = stanceInv * zmp;
+
+    cur.zmp[0] = zmp[0];
+    cur.zmp[1] = zmp[1];
+
+
+    for (int deriv=0; deriv<3; ++deriv) {
+      vec3 cv(comX(i,deriv), comY(i,deriv), deriv==0 ? com_height : 0);
+      if (deriv == 0) {
+	cv = stanceInv * cv;
+      } else {
+	cv = stanceInv.rotFwd() * cv;
       }
-      cur.com[2][0] = com_height;
-      
+      for (int axis=0; axis<3; ++axis) {
+	cur.com[axis][deriv] = cv[axis];
+      }
     }
 
     traj.push_back(cur);
@@ -700,21 +730,35 @@ int main(int argc, char** argv) {
   std::cerr << "Execution time:                           " << sim_time << "s\n";
   std::cerr << "Speedup over real-time:                   " << sim_time/total_time << "\n";
 
-  zmp_traj_t trajectory;
-  memset( &trajectory, 0, sizeof(trajectory) );
+  //////////////////////////////////////////////////////////////////////
+  // now deal with ach
 
-  int N;
-  if( (int)traj.size() > MAX_TRAJ_SIZE )
-    N = MAX_TRAJ_SIZE;
-  else
-    N = (int)traj.size();
+#ifdef HAVE_HUBO_ACH
 
-  trajectory.count = N;
-  for(int i=0; i<N; i++)
-    memcpy( &(trajectory.traj[i]), &(traj[i]), sizeof(zmp_traj_element_t) );
+  if (use_ach) {
 
-  ach_put( &zmp_chan, &trajectory, sizeof(trajectory) );
-  fprintf(stdout, "Message put\n");
+    ach_channel_t zmp_chan;
+    ach_open( &zmp_chan, HUBO_CHAN_ZMP_TRAJ_NAME, NULL );
+
+    zmp_traj_t trajectory;
+    memset( &trajectory, 0, sizeof(trajectory) );
+
+    int N;
+    if( (int)traj.size() > MAX_TRAJ_SIZE )
+      N = MAX_TRAJ_SIZE;
+    else
+      N = (int)traj.size();
+
+    trajectory.count = N;
+    for(int i=0; i<N; i++)
+      memcpy( &(trajectory.traj[i]), &(traj[i]), sizeof(zmp_traj_element_t) );
+
+    ach_put( &zmp_chan, &trajectory, sizeof(trajectory) );
+    fprintf(stdout, "Message put\n");
+
+  }
+
+#endif
 
   if (show_gui) {
 
