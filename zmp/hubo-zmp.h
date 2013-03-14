@@ -21,6 +21,7 @@ typedef struct zmp_traj_element {
   double com[3][3]; // XYZ pos/vel/accel in frame of stance foot
   double zmp[2]; // XY of zmp
   double fz[2]; // right/left predicted normal forces
+  double forces[2][3]; // right/left predicted normal forces
   double torque[2][3]; // right/left predicted moments XYZ
   // TODO: add orientation for IMU
   stance_t stance;

@@ -36,6 +36,8 @@ public:
   KinBody& kbody;
 
   HuboPlus::KState state;
+  vec3 forces[2];
+  vec3 torques[2];
   vec3 actualCom;
 
   Transform3Array xforms;
@@ -118,7 +120,12 @@ public:
     
     for (int a=0; a<3; ++a) {
       actualCom[a] = cur.com[a][0];
+      for (int f=0; f<2; ++f) {
+	forces[f][a] = cur.forces[f][a];
+	torques[f][a] = cur.torque[f][a]; // TODO: FIXME: pluralization WTF?
+      }
     }
+
 			    
 
     std::cerr << "current index: " << cur_index << "/" << traj.size() << "\n";  
@@ -180,6 +187,20 @@ public:
 
     hplus.kbody.renderSkeleton(xforms, quadric);
 
+    for (int f=0; f<2; ++f) {
+      Transform3 fk = hplus.kbody.manipulatorFK(xforms, f);
+      glPushMatrix();
+      glstuff::mult_transform(fk);
+      real fscl = 1.0/400;
+      real tscl = 0.01;
+      glColor3ub(255,255,0);
+      glstuff::draw_arrow(quadric, vec3(0), fscl*forces[f], 0.02);
+      glColor3ub(255,128,0);
+      glstuff::draw_arrow(quadric, vec3(0), tscl*torques[f], 0.02);
+
+      glPopMatrix();
+    }
+
     glPopMatrix();
 
 
@@ -225,13 +246,13 @@ public:
     switch (key) {
     case '-':
       animating = false;
-      deltaCurrent(-5);
+      deltaCurrent(-1);
       glutPostRedisplay();
       break;
     case '+':
     case '=':
       animating = false;
-      deltaCurrent(5);
+      deltaCurrent(1);
       glutPostRedisplay();
       break;
     case 'r':
@@ -748,6 +769,19 @@ int main(int argc, char** argv) {
     cur.zmp[0] = zmp[0];
     cur.zmp[1] = zmp[1];
 
+    vec3 forces[2], torques[2];
+
+    hplus.computeGroundReaction( vec3(comX(i,0), comY(i,0), com_height),
+				 vec3(comX(i,2), comY(i,2), 0),
+				 desired, mode,
+				 forces, torques );
+
+    for (int f=0; f<2; ++f) {
+      for (int axis=0; axis<3; ++axis) {
+	cur.forces[f][axis] = forces[f][axis];
+	cur.torque[f][axis] = torques[f][axis]; // TODO: FIXME: pluralization WTF?
+      }
+    }
 
     for (int deriv=0; deriv<3; ++deriv) {
       vec3 cv(comX(i,deriv), comY(i,deriv), deriv==0 ? com_height : 0);
