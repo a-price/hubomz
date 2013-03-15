@@ -6,34 +6,6 @@
 
 using namespace std;
 
-TEST(Footprint, lineWalking)
-{
-  vector<Footprint> res = walkLine(10, 1, 3);
-  EXPECT_FALSE(res.empty());
-  EXPECT_LT(res.size(), 10000);
-  int N = res.size();
-  EXPECT_DOUBLE_EQ(res[0].x, 0);
-  EXPECT_DOUBLE_EQ(res[1].x, 0);
-  EXPECT_DOUBLE_EQ(res[2].x, 2.5);
-  EXPECT_DOUBLE_EQ(res[3].x, 5);
-  EXPECT_DOUBLE_EQ(res[4].x, 7.5);
-  EXPECT_DOUBLE_EQ(res[N-2].x, 10);
-  EXPECT_DOUBLE_EQ(res[N-1].x, 10);
-  EXPECT_LT(res[N-3].x, 9);
-
-  EXPECT_TRUE(res[0].is_left);
-  EXPECT_FALSE(res[1].is_left);
-
-  EXPECT_FALSE(res[N-2].is_left);
-  EXPECT_TRUE(res[N-1].is_left);
-
-
-  for ( int i = 0; i < N; i++ ) {
-    Footprint &fp = res[i];
-    EXPECT_DOUBLE_EQ(fp.y, (fp.is_left-0.5)*2);
-  }
-}
-
 #define EXPECT_FEET_EQ(foot, _x, _y, _theta, _is_left) \
   EXPECT_NEAR((foot).x, _x, 1e-12); \
   EXPECT_NEAR((foot).y, _y, 1e-12); \
@@ -46,42 +18,6 @@ TEST(Footprint, lineWalking)
 const bool LEFT = true;
 const bool RIGHT = false;
 const double pi = atan(1.0)*4;
-
-TEST(Footprint, circleWalking)
-{
-  double radius;
-  double distance;
-  double width;
-  double max_step_length;
-  double max_step_angle;
-  Footprint* init_left;
-  Footprint* init_right;
-  bool left_is_stance_foot;
-
-
-  vector<Footprint> res = walkCircle(
-      radius = 10,
-      distance = 10*pi, // Walk half the circle
-      width = 0.1,
-      max_step_length = pi+1e-15,
-      max_step_angle = pi, // We don't care about it for now
-      init_left = new Footprint(0, 0.1, 0, true),
-      init_right = new Footprint(0, -0.1, 0, false),
-      left_is_stance_foot = false // We start moving the left foot
-    );
-
-  EXPECT_FALSE(res.empty());
-  EXPECT_LT(res.size(), 10000);
-  int N = res.size();
-
-  ASSERT_EQ(N, 12);
-  EXPECT_FEET_EQ(res[0]  , 0        , -width   , 0    , RIGHT);
-  EXPECT_FEET_EQ(res[5]  , 10-width , 10       , pi/2 , LEFT);
-  EXPECT_FEET_EQ(res[10] , 0        , 20+width , pi   , RIGHT);
-  EXPECT_FEET_EQ(res[11] , 0        , 20-width , pi   , LEFT);
-}
-
-
 
 struct TestHelper {
   double radius;
@@ -167,45 +103,111 @@ struct TestHelper {
   }
 };
 
-TEST(Footprint, circleWalking2)
+
+TEST(Footprint, lineWalking)
 {
+  vector<Footprint> res = walkLine(10, 1, 3);
+  EXPECT_FALSE(res.empty());
+  EXPECT_LT(res.size(), 10000);
+  int N = res.size();
+  EXPECT_DOUBLE_EQ(res[0].x, 0);
+  EXPECT_DOUBLE_EQ(res[1].x, 0);
+  EXPECT_DOUBLE_EQ(res[2].x, 2.5);
+  EXPECT_DOUBLE_EQ(res[3].x, 5);
+  EXPECT_DOUBLE_EQ(res[4].x, 7.5);
+  EXPECT_DOUBLE_EQ(res[N-2].x, 10);
+  EXPECT_DOUBLE_EQ(res[N-1].x, 10);
+  EXPECT_LT(res[N-3].x, 9);
+
+  EXPECT_TRUE(res[0].is_left);
+  EXPECT_FALSE(res[1].is_left);
+
+  EXPECT_FALSE(res[N-2].is_left);
+  EXPECT_TRUE(res[N-1].is_left);
+
+
+  for ( int i = 0; i < N; i++ ) {
+    Footprint &fp = res[i];
+    EXPECT_DOUBLE_EQ(fp.y, (fp.is_left-0.5)*2);
+  }
+}
+
+
+TEST(Footprint, circleWalking)
+{
+  double radius;
+  double distance;
   double width;
-  TestHelper th(-10, //radius
-      10*pi, //distance
-      width = 0.1, //width
-      10000, // max_step_length
-      pi/10+1e-14, //max_step_angle
-      new Footprint(0, 0.1, 0, true), // init_left
-      NULL, // init_right
-      true // left_is_stance_foot
+  double max_step_length;
+  double max_step_angle;
+  Footprint* init_left;
+  Footprint* init_right;
+  bool left_is_stance_foot;
+
+
+  vector<Footprint> res = walkCircle(
+      radius = 10,
+      distance = 10*pi, // Walk half the circle
+      width = 0.1,
+      max_step_length = pi+1e-15,
+      max_step_angle = 10000*pi, // We don't care about it for now
+      init_left = new Footprint(0, 0.1, 0, true),
+      init_right = new Footprint(0, -0.1, 0, false),
+      left_is_stance_foot = false // We start moving the left foot
     );
-  th.checkAllProperties();
-  vector<Footprint> res(th.res);
 
   EXPECT_FALSE(res.empty());
   EXPECT_LT(res.size(), 10000);
   int N = res.size();
 
-  EXPECT_EQ(N, 12);
-  ASSERT_GE(N, 12);
-  /* EXPECT_FEET_EQ(res[0]  , 0        , width     , 0     , LEFT); */
-  EXPECT_FEET_EQ(res[5]  , 10-width , -10       , -pi/2 , RIGHT);
-  /* EXPECT_FEET_EQ(res[10] , 0        , -20-width , -pi   , LEFT); */
-  /* EXPECT_FEET_EQ(res[11] , 0        , -20+width , -pi   , RIGHT); */
+  ASSERT_EQ(N, 12);
+  EXPECT_FEET_EQ(res[0]  , 0        , -width   , 0    , RIGHT);
+  EXPECT_FEET_EQ(res[5]  , 10-width , 10       , pi/2 , LEFT);
+  EXPECT_FEET_EQ(res[10] , 0        , 20+width , pi   , RIGHT);
+  EXPECT_FEET_EQ(res[11] , 0        , 20-width , pi   , LEFT);
 }
 
-/* TEST(Footprint, circleWalking4) */
+
+
+/* TEST(Footprint, circleWalking2) */
 /* { */
+/*   double width; */
 /*   TestHelper th(-10, //radius */
 /*       10*pi, //distance */
-/*       0.1, //width */
+/*       width = 0.1, //width */
 /*       10000, // max_step_length */
 /*       pi/10+1e-14, //max_step_angle */
-/*       new Footprint(0, -0.1, 0, true), // init_left */
+/*       new Footprint(0, 0.1, 0, true), // init_left */
 /*       NULL, // init_right */
 /*       true // left_is_stance_foot */
 /*     ); */
 /*   th.checkAllProperties(); */
-/*   /1* vector<Footprint> res(th.res); *1/ */
+/*   vector<Footprint> res(th.res); */
+
+/*   EXPECT_FALSE(res.empty()); */
+/*   EXPECT_LT(res.size(), 10000); */
+/*   int N = res.size(); */
+
+/*   EXPECT_EQ(N, 12); */
+/*   ASSERT_GE(N, 12); */
+/*   /1* EXPECT_FEET_EQ(res[0]  , 0        , width     , 0     , LEFT); *1/ */
+/*   EXPECT_FEET_EQ(res[5]  , 10-width , -10       , -pi/2 , RIGHT); */
+/*   /1* EXPECT_FEET_EQ(res[10] , 0        , -20-width , -pi   , LEFT); *1/ */
+/*   /1* EXPECT_FEET_EQ(res[11] , 0        , -20+width , -pi   , RIGHT); *1/ */
 /* } */
+
+/* /1* TEST(Footprint, circleWalking4) *1/ */
+/* /1* { *1/ */
+/* /1*   TestHelper th(-10, //radius *1/ */
+/* /1*       10*pi, //distance *1/ */
+/* /1*       0.1, //width *1/ */
+/* /1*       10000, // max_step_length *1/ */
+/* /1*       pi/10+1e-14, //max_step_angle *1/ */
+/* /1*       new Footprint(0, -0.1, 0, true), // init_left *1/ */
+/* /1*       NULL, // init_right *1/ */
+/* /1*       true // left_is_stance_foot *1/ */
+/* /1*     ); *1/ */
+/* /1*   th.checkAllProperties(); *1/ */
+/* /1*   /2* vector<Footprint> res(th.res); *2/ *1/ */
+/* /1* } *1/ */
 

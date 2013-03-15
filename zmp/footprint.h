@@ -23,8 +23,8 @@ std::vector<Footprint> walkLine(double dist, /// The distance to walk in meters
 std::vector<Footprint> walkCircle(double radius, /// The radius of the circle to walk in
                              double distance, /// The distance to walk along the circle
                              double width, /// The distance between the center of the robot and the center of a foot
-                             double max_step_length, /// The maximum allowed length the robot may step
-                             double max_step_angle, /// The maximum angle between successive steps
+                             double max_step_length, /// The maximum HALF allowed length the robot may step
+                             double max_step_angle, /// The maximum HALF angle between successive steps
                              Footprint* init_left, /// The position the left foot starts in
                              Footprint* init_right, /// The position the right foot starts in
                              bool left_is_stance_foot /// Which foot the robot will be starting off standing on

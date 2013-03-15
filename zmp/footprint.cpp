@@ -40,7 +40,8 @@ vector<Footprint> walkCircle(double radius,
     assert(distance > 0);
     assert(width > 0);
     assert(max_step_length > 0);
-    assert(max_step_angle > 0);
+    /* assert(max_step_angle >= -3.14159265359); */
+    /* assert(max_step_angle < 3.14159265359); */
     assert((left_is_stance_foot ? init_left : init_right)
           && "The stance foot must not be null");
 
@@ -54,13 +55,20 @@ vector<Footprint> walkCircle(double radius,
         * Eigen::Rotation2D<double>(stance_foot->theta)
         * Eigen::Translation<double, 2>(0, left_is_stance_foot?-width:width);
 
-    // minimize K subject to conditions, compute resulting dTheta
-    int K = ceil(distance / max_step_angle * abs((radius - width) / radius));
-    double dTheta = distance / (K * radius);
-    if (abs(dTheta) > max_step_angle) {
-        K = ceil(distance / abs(radius) * max_step_angle);
-        dTheta = distance / (K * radius);
-    }
+    double alpha = distance / radius;
+    double outer_dist = (radius + width) * alpha;
+    int K_step_length = ceil(outer_dist / max_step_length);
+    int K_angle = ceil(alpha / max_step_angle);
+    int K = max(K_step_length, K_angle);
+
+    /* // minimize K subject to conditions, compute resulting dTheta */
+    /* int K = ceil(distance / max_step_angle * abs((radius - width) / radius)); */
+    /* double dTheta = distance / (K * radius); */
+    /* if (abs(dTheta) > max_step_angle) { */
+    /*     K = ceil(distance / abs(radius) * max_step_angle); */
+    /*     dTheta = distance / (K * radius); */
+    /* } */
+    double dTheta = alpha/K;
 
     // init results list
     vector<Footprint> result;
