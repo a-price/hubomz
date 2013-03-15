@@ -131,11 +131,17 @@ void ZMPWalkGenerator::addFootstep(const Footprint& fp) {
     double dist_theta = atan2(rotation_intermediate.y(), rotation_intermediate.x()); // hooray for bad code!
     
     // figure out how long we spend in each stage
-    //size_t double_ticks = timer.compute_double(dist, dist_theta, step_height);
-    //size_t single_ticks = timer.compute_single(dist, dist_theta, step_height);
+    // TODO: 
+    //  dist for double support should be distance ZMP moves
+    //  no theta or step height needed for double support
+    //
+    //  dist for single support should be distance SWING FOOT moves
+    //  that also includes change in theta, and step height
+    size_t double_ticks = timer.compute_double(dist);
+    size_t single_ticks = timer.compute_single(dist, dist_theta, step_height);
 
-    size_t double_ticks = TRAJ_FREQ_HZ * min_double_support_time;
-    size_t single_ticks = TRAJ_FREQ_HZ * min_single_support_time;
+    //size_t double_ticks = TRAJ_FREQ_HZ * min_double_support_time;
+    //size_t single_ticks = TRAJ_FREQ_HZ * min_single_support_time;
     
     for (size_t i = 0; i < double_ticks; i++) {
         // sigmoidally interopolate things like desired ZMP and body

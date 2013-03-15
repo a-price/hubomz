@@ -26,6 +26,7 @@ public:
 		  startup_time(1.0),
 		  shutdown_time(1.0),
 		  duty_factor(0),
+                  zmp_dist_gain(0),
 		  dist_gain(0),
 		  theta_gain(0),
 		  height_gain(0) {
@@ -41,6 +42,8 @@ public:
 	// spent in double support phase
 	double duty_factor;
 
+	double zmp_dist_gain;
+	
 	double dist_gain; // time gain based on distance
 	double theta_gain;
 	double height_gain;
@@ -53,7 +56,7 @@ public:
 
 	size_t compute_startup();
 	size_t compute_shutdown();
-	size_t compute_double(double dist, double theta, double height);
+	size_t compute_double(double dist);
 	size_t compute_single(double dist, double theta, double height);
 
 	friend std::ostream& operator<<(std::ostream& out, GaitTimer& t);

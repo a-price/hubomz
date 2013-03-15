@@ -47,11 +47,9 @@ size_t GaitTimer::compute_startup() {
 size_t GaitTimer::compute_shutdown() {
     return seconds_to_ticks(shutdown_time);
 }
-size_t GaitTimer::compute_double(double dist, double theta, double height) {
+size_t GaitTimer::compute_double(double dist) {
     double double_time = double_support_time;
-    double_time += height_gain * height;
-    double_time += dist_gain * dist;
-    double_time += theta_gain * theta;
+    double_time += zmp_dist_gain * dist;
     return seconds_to_ticks(double_time);
 }
 size_t GaitTimer::compute_single(double dist, double theta, double height) {

@@ -145,7 +145,7 @@ step_traj_t step_times(vector<step_t> step_seq, GaitTimer timer) {
 			single_support_ticks = 0;
 		} else if(i < n_steps - 1) {
 			// real foot steps
-			double_support_ticks = timer.compute_double(0,0,0);
+			double_support_ticks = timer.compute_double(0);
 			single_support_ticks = timer.compute_single(0,0,0);
 		} else {
 			// hold ending position
