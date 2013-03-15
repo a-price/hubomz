@@ -41,7 +41,10 @@ public:
  */
 std::vector<Footprint> walkLine(double dist, /// The distance to walk in meters
                                 double width, /// The ground distance between the center of the robot to the center of a foot
-                                double max_step_length /// The maximum allowed length the robot may step
+                                double max_step_length, /// The maximum allowed length the robot may step
+                                Footprint* init_left, /// The position the left foot starts in
+                                Footprint* init_right, /// The position the right foot starts in
+                                bool stance_handedness /// Which foot the robot will be starting off standing on
   );
 
 /**

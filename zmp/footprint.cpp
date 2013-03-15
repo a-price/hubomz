@@ -48,26 +48,59 @@ bool is_odd(int i) {
     return !is_even(i);
 }
 
-vector<Footprint> walkLine(double dist, double width, double max_step_length) {
-    // Solve simple equation
+vector<Footprint> walkLine(double dist,
+                           double width,
+                           double max_step_length,
+                           Footprint* init_left,
+                           Footprint* init_right,
+                           bool left_is_stance_foot) {
+    // FIXME: line should not start with two side-by-side steps
+
+    assert(dist > 0);
+    assert(width > 0);
+    assert(max_step_length > 0);
+    assert((left_is_stance_foot ? init_left : init_right)
+           && "The stance foot must not be null");
+    
+    // select stance foot, fill out transforms
+    Footprint* stance_foot;
+    if (left_is_stance_foot) stance_foot = init_left;
+    else stance_foot = init_right;
+    Transform3 T_line_to_world =
+        stance_foot->transform
+        * Transform3(quat(), vec3(0, left_is_stance_foot?-width:width, 0));
+
+    // find K, N, and L simple equation
     const int K = int(ceil(dist/max_step_length) + 1e-10);
     const double L = dist/K;
     const int N = K+3;
-    vector<Footprint> res(N);
+
+    // build result vector
+    vector<Footprint> result(N);
 
     // Do all steps
-    for ( int i = 0; i < N; i++ ) {
+    for (int i = 0; i < N; i++) {
+        bool is_left = (is_even(i) == left_is_stance_foot);
         double x = (i-1)*L;
-        double y = width * (is_even(i)-0.5)*2;
-        res[i] = Footprint(x, y, 0, is_even(i));
+        double y = width * is_left ? width : -width;
+        result[i] = Footprint(x, y, 0, is_left);
     }
 
-    res[0] = Footprint(0, res[0].y(), 0, res[0].is_left);
-    res[1] = Footprint(0, res[1].y(), 0, res[1].is_left);
-    res[N-1] = Footprint(dist, res[N-1].y(), 0, res[N-1].is_left);
-    res[N-2] = Footprint(dist, res[N-2].y(), 0, res[N-2].is_left);
+    result[1] = Footprint(0, result[1].y(), 0, result[1].is_left);
+    result[N-1] = Footprint(dist, result[N-1].y(), 0, result[N-1].is_left);
+    result[N-2] = Footprint(dist, result[N-2].y(), 0, result[N-2].is_left);
 
-    return res;
+    // run through results transforming them back into the original frame of reference
+    for(std::vector<Footprint>::iterator it = result.begin(); it < result.end(); it++) {
+        it->transform = T_line_to_world * it->transform;
+    }
+    result[0] = Footprint(*stance_foot);
+
+    for(std::vector<Footprint>::iterator it = result.begin(); it < result.end(); it++) {
+        std::cout << *it << std::endl;
+    }
+
+    return result;
 }
 
 vector<Footprint> walkCircle(double radius,
