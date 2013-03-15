@@ -405,6 +405,7 @@ int main(int argc, char** argv) {
   bool show_gui = false;
   bool use_ach = false;
 
+  // TODO: rename these variables to be slightly more descriptive
   double fy = 0.085; // half of horizontal separation distance between feet
   double zmpy = 0; // lateral displacement between zmp and ankle
   double zmpx = 0;
@@ -499,12 +500,12 @@ int main(int argc, char** argv) {
                           single_support_time,
                           double_support_time,
                           startup_time,
-                          shutdown_time
+                          shutdown_time,
+                          fz
     );
   ZMPReferenceContext initContext;
 
   // helper variables and classes
-  Transform3Array xforms;
   const KinBody& kbody = hplus.kbody;
   const JointLookup& jl = hplus.jl;
   double deg = M_PI/180; // for converting from degrees to radians
@@ -519,7 +520,6 @@ int main(int argc, char** argv) {
   initContext.state.jvalues[jl("RSP")] =  20*deg;
   initContext.state.jvalues[jl("LEP")] = -40*deg;
   initContext.state.jvalues[jl("REP")] = -40*deg;
-  kbody.transforms(initContext.state.jvalues, xforms);
   
   // build and fill in the initial foot positions
   initContext.feet[0] = Transform3(quat(), vec3(0, fy, 0));

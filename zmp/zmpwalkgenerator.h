@@ -37,7 +37,8 @@ public:
                      double min_single_support_time,
                      double min_double_support_time,
                      double walk_startup_time,
-                     double walk_shutdown_time
+                     double walk_shutdown_time,
+                     double step_height
         );
     
     const HuboPlus& hplus;
@@ -48,6 +49,7 @@ public:
     double min_double_support_time;
     double walk_startup_time;
     double walk_shutdown_time;
+    double step_height;
     // tons of constants
 
 
@@ -71,6 +73,8 @@ public:
     void addFootstep(const Footprint& fp);
     void bakeIt();
 private:
+    size_t first_step_index;
+    
     // helper
     double sigmoid(double x);
     

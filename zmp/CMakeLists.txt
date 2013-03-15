@@ -1,4 +1,4 @@
-add_executable(zmpdemo zmpdemo.cpp zmpwalkgenerator.cpp footprint.cpp)
+add_executable(zmpdemo zmpdemo.cpp zmpwalkgenerator.cpp footprint.cpp gait-timer.cpp swing.cpp)
 add_executable(swingtest swing-test.cpp swing.cpp)
 add_executable(footprintdemo footprint-example.cpp footprint.cpp)
 

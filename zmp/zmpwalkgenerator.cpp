@@ -2,6 +2,7 @@
 #include "HuboPlus.h"
 #include "zmpwalkgenerator.h"
 #include "gait-timer.h"
+#include "swing.h"
 
 ZMPWalkGenerator::ZMPWalkGenerator(HuboPlus& _hplus,
                                    double com_height,
@@ -10,7 +11,8 @@ ZMPWalkGenerator::ZMPWalkGenerator(HuboPlus& _hplus,
                                    double min_single_support_time,
                                    double min_double_support_time,
                                    double walk_startup_time,
-                                   double walk_shutdown_time) :
+                                   double walk_shutdown_time,
+                                   double step_height) :
     hplus(_hplus),
     com_height(com_height),
     zmp_R(zmp_R),
@@ -18,7 +20,8 @@ ZMPWalkGenerator::ZMPWalkGenerator(HuboPlus& _hplus,
     min_single_support_time(min_single_support_time),
     min_double_support_time(min_double_support_time),
     walk_startup_time(walk_startup_time),
-    walk_shutdown_time(walk_shutdown_time)
+    walk_shutdown_time(walk_shutdown_time),
+    step_height(step_height)
 {
 }
 
@@ -27,6 +30,8 @@ ZMPWalkGenerator::ZMPWalkGenerator(HuboPlus& _hplus,
 void ZMPWalkGenerator::initialize(const ZMPReferenceContext& current) {
     ref.clear();
     traj.clear();
+    first_step_index = -1;
+    initContext = current;
 }
 
 /**
@@ -57,62 +62,105 @@ double ZMPWalkGenerator::sigmoid(double x) {
 }
 
 void ZMPWalkGenerator::addFootstep(const Footprint& fp) {
-    
+    // initialize our timer
     GaitTimer timer;
     timer.single_support_time = min_single_support_time;
     timer.double_support_time = min_double_support_time;
     timer.startup_time = walk_startup_time;
     timer.startup_time = walk_shutdown_time;
 
+    // grab the initial position of the zmp
+    const ZMPReferenceContext start_context = getLastRef();
+
+    // figure out the stances for this movement
+    stance_t double_stance = fp.is_left ? DOUBLE_LEFT : DOUBLE_RIGHT;
+    stance_t single_stance = fp.is_left ? SINGLE_LEFT : SINGLE_RIGHT;
+
+    // figure out swing foot and stance foot for accessing
+    int swing_foot = fp.is_left ? 0 : 1;
+
+    // figure out where our body is going to end up if we put our foot there
+    quat body_rot_end = quat::slerp(start_context.feet[swing_foot].rotation(),
+                                    fp.transform.rotation(),
+                                    0.5);
+
+    // figure out the start and end positions of the zmp
+    vec3 zmp_end = fp.transform.translation();
+    vec3 zmp_start = vec3(start_context.pX, start_context.pX, 0);
+
+    // figure out how far the swing foot will be moving
+    double dist = (fp.transform.translation() - start_context.feet[swing_foot].translation()).norm();
+
+    // turns out that extracting plane angles from 3d rotations is a bit annoying. oh well.
+    vec3 rotation_intermediate =
+        fp.transform.rotFwd() * vec3(1.0, 0.0, 0.0) +
+        start_context.feet[swing_foot].rotFwd() * vec3(1.0, 0.0, 0.0);
+    double dist_theta = atan2(rotation_intermediate.y(), rotation_intermediate.x()); // hooray for bad code!
     
+    // figure out how long we spend in each stage
+    size_t double_ticks = timer.compute_double(dist, dist_theta, step_height);
+    size_t single_ticks = timer.compute_single(dist, dist_theta, step_height);
     
-    // // find out how long in double support
-    // //TODO use eric's timer code
-    // size_t dticks = getdticks();
-
-    // stance_t dstance = getdoublestance();
-
-    // // not a C++ reference because I'm modifying ref inside loop
-    // const ZMPReferenceContext start = getLastRef();
-
-    // double pX_end = 0;
-    // double pY_end = 0;
-    // quat body_rot_end = quat();
-
-    // for (size_t i=0; i<dticks; ++i) {
-
-    //     // sigmoidally interopolate things like desired ZMP and body rotation
-    //     ref.push_back(start);
-
-    //     ZMPReferenceContext& cur = ref.back();
-
-    //     double u = double(i) / (dticks-1);
-    //     double c = sigmoid(u);
-
-    //     cur.stance = dstance;
-
-    //     cur.pX = start.pX + c * (pX_end - start.pX);
-    //     cur.pY = start.pY + c * (pY_end - start.pY);
-
-    //     cur.state.body_rot = quat::slerp(start.state.body_rot, 
-    //                                      body_rot_end, c);
-
-    // }
-
-    // size_t sticks = getsingle();
-
-    // stance_t sstance = getsinglestance();
-    // int swing_foot = getswing(sstance);
-    // int stance_foot = getstance(sstance);
-
-    // for (size_t i=0; sticks; ++i) {
-    //     ref.push_back(getLastRef());
-    //     ZMPReferenceContext& cur = ref.back();
-    //     cur.feet[swing] = getfoottransformfromana(i);
-    // }
-
+    for (size_t i = 0; i < double_ticks; i++) {
+        // sigmoidally interopolate things like desired ZMP and body
+        // rotation. we run the sigmoid across both double and isngle
+        // support so we don't try to whip the body across for the
+        // split-second we're in double support.
+        double u = double(i) / double(single_ticks + double_ticks - 1);
+        double c = sigmoid(u);
         
+        ZMPReferenceContext cur_context;
+        cur_context.stance = double_stance;
+
+        cur_context.feet[0] = start_context.feet[0];
+        cur_context.feet[1] = start_context.feet[1];
+
+        vec3 cur_zmp = zmp_start + (zmp_end - zmp_start) * c;
+        cur_context.pX = cur_zmp.x();
+        cur_context.pY = cur_zmp.y();
+
+        cur_context.state = start_context.state;
+        cur_context.state.jvalues = fakerave::RealArray(start_context.state.jvalues);
+        cur_context.state.body_rot = quat::slerp(start_context.state.body_rot, 
+                                                 body_rot_end,
+                                                 c);
+
+        ref.push_back(cur_context);
+    }
+
+    double swing_foot_traj[single_ticks][3];
+    double swing_foot_angle[single_ticks];
+
+    swing2Cycloids(start_context.feet[swing_foot].translation().x(),
+                   start_context.feet[swing_foot].translation().y(),
+                   start_context.feet[swing_foot].translation().z(),
+                   fp.transform.translation().x(),
+                   fp.transform.translation().y(),
+                   fp.transform.translation().z(),
+                   single_ticks,
+                   fp.is_left,
+                   step_height,
+                   swing_foot_traj,
+                   swing_foot_angle);
+
+    for (size_t i = 0; i < single_ticks; i++) {
+        ref.push_back(getLastRef());
+        ZMPReferenceContext& cur_context = ref.back();
+        cur_context.stance = single_stance;
+        cur_context.feet[swing_foot] = Transform3(quat::fromAxisAngle(vec3(0.0,0.0,1.0),
+                                                                      swing_foot_angle[i]),
+                                                  vec3(swing_foot_traj[i][0],
+                                                       swing_foot_traj[i][1],
+                                                       swing_foot_traj[i][2]));
+    }
+
+    // finally, update the first step variable if necessary
+    if (first_step_index == -1) { // we haven't taken a first step yet
+        first_step_index = ref.size() - 1;
+    }
 }
+
+
 /**
  * @function: bakeIt()
  * @brief: clears a trajectory, runs ZMP Preview Controller
@@ -120,15 +168,14 @@ void ZMPWalkGenerator::addFootstep(const Footprint& fp) {
  * @return: void
  */
 void ZMPWalkGenerator::bakeIt() {
-    // traj.clear();
-    // runZMPPreview();
-    // runCOMIK();
-    // dumpTraj();
+    traj.clear();
+    runZMPPreview();
+    runCOMIK();
+    dumpTraj();
 
-    // // for thinkin ahead
-    // initContext = ref[indexAfterFirstStep];
-    // ref.clear();
-
+    // for thinkin ahead
+    initContext = ref[first_step_index];
+    ref.clear();
 }
 
 /** @function: runZMPPreview()
@@ -160,8 +207,8 @@ void ZMPWalkGenerator::runZMPPreview() {
     for(size_t i = 0; i < ref.size(); i++) {
         ZMPReferenceContext& cur = ref[i];
         // run zmp preview controller to update COM states and integrator error
-        preview.update(comX, eX, zmprefX.rightCols(zmprefX.size()-i));
-        preview.update(comY, eY, zmprefY.rightCols(zmprefX.size()-i));
+        preview.update(comX, eX, zmprefX.block(i, 0, zmprefX.size()-i, 1));
+        preview.update(comY, eY, zmprefY.block(i, 0, zmprefX.size()-i, 1));
         cur.comX = comX.transpose(); // set the ref comX pos/vel/acc for this tick
         cur.comY = comY.transpose(); // set the ref comY pos/vel/acc for this tick
         cur.eX = eX;                 // set the X error for this tick
@@ -182,7 +229,6 @@ void ZMPWalkGenerator::runCOMIK() {
     // initialize transforms from initial hubo configuration
     Transform3Array body_transforms;
     hplus.kbody.transforms(initContext.state.jvalues, body_transforms);
-        
 
     for(std::vector<ZMPReferenceContext>::iterator cur = ref.begin(); cur != ref.end(); cur++) {
         // set up target positions
