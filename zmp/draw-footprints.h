@@ -5,6 +5,11 @@
 #include <vector>
 #include "zmp/footprint.h"
 
+/**
+ * \fn sampleFootprints
+ * \brief Generates a vector of simple footprints in a straight line, slightly turned out
+ * \param [in] numPrints The number of feet to draw
+ */
 std::vector<Footprint> sampleFootprints(int numPrints)
 {
 	std::vector<Footprint> prints;
@@ -23,7 +28,14 @@ std::vector<Footprint> sampleFootprints(int numPrints)
 	return prints;
 }
 
-void drawFootprints(std::vector<Footprint> footprints, double foot_width = 0.1)
+/**
+ * \fn drawFootprints
+ * \brief Draws a vector of footprints at z=0 in the current OpenGL context
+ * \param [in] footprints The vector containing the footprints to draw
+ * \param [in] foot_width Sets the width of the drawn foot's bounding box. The
+ * height is twice the width.
+ */
+void drawFootprints(const std::vector<Footprint>& footprints, const double foot_width = 0.1)
 {
 	double foot_bounds[4][2] = {
 			{foot_width,foot_width/2},
