@@ -37,6 +37,13 @@ vector<Footprint> walkCircle(double radius,
                              Footprint* init_left,
                              Footprint* init_right,
                              bool left_is_stance_foot) {
+    assert(distance > 0);
+    assert(width > 0);
+    assert(max_step_length > 0);
+    assert(max_step_angle > 0);
+    assert((left_is_stance_foot ? init_left : init_right)
+          && "The stance foot must not be null");
+
     // select stance foot, fill out transforms
     Footprint* stance_foot;
     if (left_is_stance_foot) stance_foot = init_left;
@@ -113,7 +120,7 @@ vector<Footprint> walkCircle(double radius,
 }
 
 
-int main() {
+int example_main() {
     double radius = 1;
     double distance = 2;
     double width = .2;
