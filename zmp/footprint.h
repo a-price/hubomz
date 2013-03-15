@@ -7,10 +7,11 @@
 using namespace std;
 
 class Footprint {
+public:
   double x;
   double y;
   double theta;
-  stance_t is_left;
+  bool is_left;
 
   /* Footprint(double x, double y, double theta, double is_left); */
   /* Footprint(); */
@@ -35,7 +36,7 @@ std::vector<Footprint> walkCircle(double radius, /// The radius of the circle to
                              double max_step_angle, /// The maximum HALF angle between successive steps
                              Footprint* init_left, /// The position the left foot starts in
                              Footprint* init_right, /// The position the right foot starts in
-                             stance_t stance_handedness /// Which foot the robot will be starting off standing on
+                             bool left_is_stance_foot /// Which foot the robot will be starting off standing on
     );
 
 #endif   /* ----- #ifndef FOOTPRINT_INC  ----- */

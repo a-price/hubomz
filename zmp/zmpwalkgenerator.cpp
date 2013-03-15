@@ -1,172 +1,155 @@
 #include "zmpwalkgenerator.h"
 
-class ZMPWalkGenerator {
-public:
+ZMPWalkGenerator::ZMPWalkGenerator() { }
+
+// these all modify the current context but do not immediately affect traj
+
+// this needs to have everything realized
+void ZMPWalkGenerator::initialize(const ZMPReferenceContext& current) {
+    ref.clear();
+    traj.clear();
+
+}
+
+const ZMPWalkGenerator::ZMPReferenceContext& getLastRef() {
+    return ref.empty() ? initContext : ref.back();
+}
 
 
-    const HuboPlus& hplus;
-    
-
-    real com_height;
-    // tons of constants
-
-    ZMPReferenceContext initContext; 
-    std::vector<ZMPReferenceContext> ref;
-
-    std::vector<zmp_traj_element_t> traj; // the entire fullbody trajectory so far
-    
-    // INVARIANT: traj.back() agrees 100% with current
-
-    // these all modify the current context but do not immediately affect traj
-
-    // this needs to have everything realized
-    void initialize(const ZMPReferenceContext& current) {
-        ref.clear();
-        traj.clear();
-
-    }
-
-    const ZMPReferenceContext& getLastRef() {
-        return ref.empty() ? initContext : ref.back();
-    }
-
-
-    // these will add walk contexts to the back of ref and the new
-    // contexts don't have comX, comY, eX, eY however, the kstate will
-    // have body orientation set correctly and upper body joints
-    void stayDogStay(size_t stay_ticks) {
+// these will add walk contexts to the back of ref and the new
+// contexts don't have comX, comY, eX, eY however, the kstate will
+// have body orientation set correctly and upper body joints
+void ZMPWalkGenerator::stayDogStay(size_t stay_ticks) {
        
-        for (size_t i=0; i<stay_ticks; ++i) {
-            ref.push_back(getLastRef());
-        }
-
+    for (size_t i=0; i<stay_ticks; ++i) {
+        ref.push_back(getLastRef());
     }
 
-    void addFootstep(const Footprint& fp) {
+}
+
+void ZMPWalkGenerator::addFootstep(const Footprint& fp) {
         
-        // find out how long in double support
-        size_t dticks = getdticks();
+    // find out how long in double support
+    size_t dticks = getdticks();
 
-        stance_t dstance = getdoublestance();
+    stance_t dstance = getdoublestance();
 
-        // not a C++ reference because I'm modifying ref inside loop
-        const ZMPReferenceContext start = getLastRef();
+    // not a C++ reference because I'm modifying ref inside loop
+    const ZMPReferenceContext start = getLastRef();
 
-        real pX_end = 0;
-        real pY_end = 0;
-        quat body_rot_end = quat();
+    double pX_end = 0;
+    double pY_end = 0;
+    quat body_rot_end = quat();
 
-        for (size_t i=0; i<dticks; ++i) {
+    for (size_t i=0; i<dticks; ++i) {
 
-            // sigmoidally interopolate things like desired ZMP and body rotation
-            ref.push_back(start);
+        // sigmoidally interopolate things like desired ZMP and body rotation
+        ref.push_back(start);
 
-            ZMPReferenceContext& cur = ref.back();
+        ZMPReferenceContext& cur = ref.back();
 
-            real u = real(i) / (dticks-1);
-            real c = sigmoid(u);
+        double u = double(i) / (dticks-1);
+        double c = sigmoid(u);
 
-            cur.stance = dstance;
+        cur.stance = dstance;
 
-            cur.pX = start.pX + c * (pX_end - start.pX);
-            cur.pY = start.pY + c * (pY_end - start.pY);
+        cur.pX = start.pX + c * (pX_end - start.pX);
+        cur.pY = start.pY + c * (pY_end - start.pY);
 
-            cur.state.body_rot = quat::slerp(start.state.body_rot, 
-                                             body_rot_end, c);
+        cur.state.body_rot = quat::slerp(start.state.body_rot, 
+                                         body_rot_end, c);
 
-        }
+    }
 
-        size_t sticks = getsingle();
+    size_t sticks = getsingle();
 
-        stance_t sstance = getsinglestance();
-        int swing_foot = getswing(sstance);
-        int stance_foot = getstance(sstance);
+    stance_t sstance = getsinglestance();
+    int swing_foot = getswing(sstance);
+    int stance_foot = getstance(sstance);
 
-        for (size_t i=0; sticks; ++i) {
-            ref.push_back(getLastRef());
-            ZMPReferenceContext& cur = ref.back();
-            cur.feet[swing] = getfoottransformfromana(i);
-        }
+    for (size_t i=0; sticks; ++i) {
+        ref.push_back(getLastRef());
+        ZMPReferenceContext& cur = ref.back();
+        cur.feet[swing] = getfoottransformfromana(i);
+    }
 
         
-    }
+}
 
-    void bakeIt() {
-        traj.clear();
-        runZMPPreview();
-        runCOMIK();
-        dumpTraj();
+void ZMPWalkGenerator::bakeIt() {
+    traj.clear();
+    runZMPPreview();
+    runCOMIK();
+    dumpTraj();
 
-        // for thinkin ahead
-        initContext = ref[indexAfterFirstStep];
-        ref.clear();
+    // for thinkin ahead
+    initContext = ref[indexAfterFirstStep];
+    ref.clear();
 
-    }
+}
 
 private:
 
-    // this runs the ZMP preview controller on the entire reference
-    // trajectory to fill in comX, comY, eX, eY for every dang thing.
-    void runZMPPreview() {
+// this runs the ZMP preview controller on the entire reference
+// trajectory to fill in comX, comY, eX, eY for every dang thing.
+void ZMPWalkGenerator::runZMPPreview() {
 
-        /*
-          todo: 
-          initialize comX, comY, eX, eY from initContext
-          pull out all pX, pY from ref into Eigen arrays
-          run zmp preview on all dat shizzy 
-        */
+    /*
+      todo: 
+      initialize comX, comY, eX, eY from initContext
+      pull out all pX, pY from ref into Eigen arrays
+      run zmp preview on all dat shizzy 
+    */
 
-        // postcondition: now we have set comX, comY, eX, eY for everything in ref.
+    // postcondition: now we have set comX, comY, eX, eY for everything in ref.
 
-    }
+}
 
-    // this runs the COM IK on every dang thing in reference to fill
-    // in the kstate
-    void runCOMIK() {
+// this runs the COM IK on every dang thing in reference to fill
+// in the kstate
+void ZMPWalkGenerator::runCOMIK() {
 
-        HuboPlus::IKMode mode[4] = { 
-            HuboPlus::IK_MODE_FIXED, // lleg
-            HuboPlus::IK_MODE_FIXED, // rleg
-            HuboPlus::IK_MODE_FIXED, // larm
-            HuboPlus::IK_MODE_FIXED, // rarm
-        };
+    HuboPlus::IKMode mode[4] = { 
+        HuboPlus::IK_MODE_FIXED, // lleg
+        HuboPlus::IK_MODE_FIXED, // rleg
+        HuboPlus::IK_MODE_FIXED, // larm
+        HuboPlus::IK_MODE_FIXED, // rarm
+    };
 
-        Transform3 desired[4]; // same oprder
+    Transform3 desired[4]; // same oprder
 
-        for (size_t i=0; i<ref.size(); ++i) {
+    for (size_t i=0; i<ref.size(); ++i) {
             
-            ZMPReferenceContext& cur = ref[i];
+        ZMPReferenceContext& cur = ref[i];
 
-            // todo: set mode based on cur.stance
-            // stance foot gets support 
-            // swing foot gets world
+        // todo: set mode based on cur.stance
+        // stance foot gets support 
+        // swing foot gets world
 
-            // todo: set desired[0] = cur.foot[0] and etc for 1
+        // todo: set desired[0] = cur.foot[0] and etc for 1
 
-            // pull the desired com oout of cur.comX[0], cur.comY[0], height
-            vec3 desiredCom; 
+        // pull the desired com oout of cur.comX[0], cur.comY[0], height
+        vec3 desiredCom; 
 
-            bool ok = hplus.comIK( desiredCom, ... );
+        bool ok = hplus.comIK( desiredCom, ... );
 
-            // TODO freak out if not ok
-
-        }
-
-        // postcondition: all of the kstates in each ref element are fully specified
+        // TODO freak out if not ok
 
     }
 
-    // this dumps everything into traj
-    void dumpTraj() {
+    // postcondition: all of the kstates in each ref element are fully specified
 
-        // pick everything important out of ref which is now fully specified
-        // calculate desired forces and torques
-        // transform everything into stance ankle reference frame
+}
+
+// this dumps everything into traj
+void ZMPWalkGenerator::dumpTraj() {
+
+    // pick everything important out of ref which is now fully specified
+    // calculate desired forces and torques
+    // transform everything into stance ankle reference frame
 
         
-    }
-
-};
+}
 
 void transforms101() {
 
