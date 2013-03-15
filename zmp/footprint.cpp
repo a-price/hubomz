@@ -7,6 +7,34 @@
 
 using namespace std;
 
+class Footprint {
+public:
+  Footprint(double x, double y, double theta, stance_t is_left) {
+    // Create translation vector
+    Eigen::Translation3d translation = Eigen::Translation3d(Eigen::Vector3d(x, y, 0));
+    // Create a rotation transform w/o translation
+    Eigen::Transform3d transform = Eigen::Transform3d(Eigen::AngleAxis(theta, Vector3f::UnitZ()));
+
+    // set internal transform to translation + rotation
+    this->transform = transform * translation;
+    this->is_left = is_left;
+
+  }
+
+  Footprint(){
+    Footprint( 0.0, 0.0, 0.0, 0.0 );
+  }
+
+  Eigen::Transform3d getTransform3d(){
+
+    return transform;
+  }
+
+  void setTransform3d(Eigen::Transform3d transform){
+    this->transform = transform;
+  }
+}
+
 bool is_even(int i) {
   return (i%2) == 0;
 }

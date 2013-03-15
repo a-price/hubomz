@@ -7,21 +7,15 @@
 using namespace std;
 
 class Footprint {
-public:
-  double x;
-  double y;
-  double theta;
-  bool is_left;
+  Eigen::Transform3d transform;
+  stance_t is_left;
 
-  /* Footprint(double x, double y, double theta, double is_left); */
-  /* Footprint(); */
-  Footprint(double x, double y, double theta, double is_left): x(x), y(y), theta(theta), is_left(is_left){};
-  Footprint(): x(0.0), y(0.0), theta(0.0), is_left(false){};
+  Footprint(double x, double y, double theta, stance_t is_left);
+  Footprint();
 
-  friend ostream& operator<<(ostream& os, const Footprint& fp) {
-    os << "x: " << fp.x << "\ty: " << fp.y << "\ttheta: " << fp.theta << "\t " << (fp.is_left ? "Left" : "Right");
-    return os;
-  }
+  Eigen::Transform3d getTransform3d();
+  void setTransform3d(Eigen::Transform3d transform);
+
 };
 
 std::vector<Footprint> walkLine(double dist, /// The distance to walk in meters
@@ -36,7 +30,7 @@ std::vector<Footprint> walkCircle(double radius, /// The radius of the circle to
                              double max_step_angle, /// The maximum HALF angle between successive steps
                              Footprint* init_left, /// The position the left foot starts in
                              Footprint* init_right, /// The position the right foot starts in
-                             bool left_is_stance_foot /// Which foot the robot will be starting off standing on
+                             stance_t stance_handedness /// Which foot the robot will be starting off standing on
     );
 
 #endif   /* ----- #ifndef FOOTPRINT_INC  ----- */
