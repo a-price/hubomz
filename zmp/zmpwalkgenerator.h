@@ -3,7 +3,8 @@
 #include "zmp/footprint.h"
 #include "fakerave.h"
 #include "hubo-zmp.h"
-#include <HuboPlus.h>
+#include "gait-timer.h"
+#include "HuboPlus.h"
 
 
 
@@ -14,6 +15,7 @@ using namespace fakerave;
 class ZMPReferenceContext {
 public:
     stance_t stance; // single/double, left/right
+    HuboPlus::IKMode ikMode[4]; // current IK settings for each limb
 
     Transform3 feet[2]; // or footprint i dont care
     Eigen::Vector3d comX, comY; // pos/vel/accel of each 
@@ -21,7 +23,6 @@ public:
     double pX, pY; // where is the desired ZMP right now?
     
     HuboPlus::KState state; // complete state of the robot
-
 };
 
 
@@ -29,10 +30,24 @@ public:
 class ZMPWalkGenerator {
 public:
     
-    ZMPWalkGenerator(HuboPlus& _hplus);
+    ZMPWalkGenerator(HuboPlus& _hplus,
+                     double com_height,
+                     double zmp_R,
+                     double com_ik_ankle_weight,
+                     double min_single_support_time,
+                     double min_double_support_time,
+                     double walk_startup_time,
+                     double walk_shutdown_time
+        );
     
     const HuboPlus& hplus;
     double com_height;
+    double zmp_R; // jerk penalty on ZMP controller
+    double com_ik_ankle_weight;
+    double min_single_support_time;
+    double min_double_support_time;
+    double walk_startup_time;
+    double walk_shutdown_time;
     // tons of constants
 
 
@@ -56,7 +71,9 @@ public:
     void addFootstep(const Footprint& fp);
     void bakeIt();
 private:
-
+    // helper
+    double sigmoid(double x);
+    
     // this runs the ZMP preview controller on the entire reference
     // trajectory to fill in comX, comY, eX, eY for every dang thing.
     void runZMPPreview();

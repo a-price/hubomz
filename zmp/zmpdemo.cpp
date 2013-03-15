@@ -488,19 +488,19 @@ int main(int argc, char** argv) {
   HuboPlus hplus(hubofile);
 
 
-  
-  // const double& l6 = hplus.footAnkleDist;
-
-  // double zmp_dt = 1.0/TRAJ_FREQ_HZ; // delta t for ZMP preview controller
-  // size_t num_lookahead = seconds_to_ticks(lookahead_time); // lookahead window size
-  // ZmpPreview preview(zmp_dt, com_height, num_lookahead, zmp_R);
-
-
   //////////////////////////////////////////////////////////////////////
   // build initial state
 
   // the actual state
-  ZMPWalkGenerator walker(hplus);
+  ZMPWalkGenerator walker(hplus,
+                          com_height,
+                          zmp_R,
+                          com_ik_ascl,
+                          single_support_time,
+                          double_support_time,
+                          startup_time,
+                          shutdown_time
+    );
   ZMPReferenceContext initContext;
 
   // helper variables and classes
