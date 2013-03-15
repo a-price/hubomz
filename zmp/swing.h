@@ -27,25 +27,25 @@ void swingEllipse( double _x0, double _y0, double _z0,
                    double _x1, double _y1, double _z1,
                    int _count,
                    bool _isLeft,
-			double _maxheight,
+                   double _maxheight,
                    double _pos[N][3],
                    double _yaw[N] );
 
 
 /** < Ellipse shape, with velocity of x, y, z starting from zero, yaw linearly */
 void swingEllipse2( double _x0, double _y0, double _z0,
-	    double _x1, double _y1, double _z1,
-	    int _count, 
-	    bool _isLeft,
-	    double _pos[N][3],
-	    double _yaw[N] );
+                    double _x1, double _y1, double _z1,
+                    int _count, 
+                    bool _isLeft,
+                    double _pos[N][3],
+                    double _yaw[N] );
 
 /**< 2 Cycloids, one for x,y, the other for z. Yaw changes as spline */
 void swing2Cycloids( double _x0, double _y0, double _theta0,
                      double _x1, double _y1, double _theta1,
                      int _count, 
                      bool _isLeft,
-			double _maxheight,
+                     double _maxheight,
                      double _pos[N][3],
                      double _yaw[N] );
 
@@ -57,26 +57,3 @@ void swingSimpleBezier( double _x0, double _y0, double _theta0,
 			double _maxheight,
                         double _pos[N][3],
                         double _yaw[N] );
-
-// COMMENTED OUT (EARLIER ATTEMPTS THAT FAILED MISERABLY)
-
-/** < Add a vertical step at start and end. Add a cycloid on top; yaw varies linearly - No continuous :( */
-/*
-  void swingVerticalStep( double _x0, double _y0, double _z0,
-  double _x1, double _y1, double _z1,
-  int _count,
-  bool _isLeft,
-  double _pos[N][3],
-  double _yaw[N] );
-*/
-
-/** < Add a vertical step at start and end. Add a cycloid on top  and yaw varies as a cubic spline - No continuous :( */
-/*
-  void swingVerticalStepSplineYaw( double _x0, double _y0, double _z0,
-  double _x1, double _y1, double _z1,
-  int _count,
-  bool _isLeft,
-  double _pos[N][3],
-  double _yaw[N] );
-*/
-
