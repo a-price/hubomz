@@ -52,7 +52,9 @@ public:
     double step_height;
     // tons of constants
 
-
+    size_t first_step_index;
+    
+    bool haveInitContext;
     ZMPReferenceContext initContext; 
     std::vector<ZMPReferenceContext> ref;
 
@@ -72,8 +74,12 @@ public:
     void stayDogStay(size_t stay_ticks);
     void addFootstep(const Footprint& fp);
     void bakeIt();
-private:
-    size_t first_step_index;
+  
+    void applyComIK(ZMPReferenceContext& ref);
+    void refToTraj(const ZMPReferenceContext& ref,
+		   zmp_traj_element_t& traj);
+
+
     
     // helper
     double sigmoid(double x);

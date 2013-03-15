@@ -411,10 +411,6 @@ int main(int argc, char** argv) {
   double zmpx = 0;
   double fz = 0.05; // foot liftoff height
 
-  double circle_max_step_length = 0.2; // maximum distance between steps
-  double circle_max_step_angle = M_PI / 12.0; // maximum angle between steps
-  double circle_distance = 5.0; // distance to go along circle
-  double circle_radius = 2.0; // radius of circle to move in
 
   double lookahead_time = 2.5;
   double startup_time = 1.0;
@@ -522,19 +518,27 @@ int main(int argc, char** argv) {
   initContext.state.jvalues[jl("REP")] = -40*deg;
   
   // build and fill in the initial foot positions
-  initContext.feet[0] = Transform3(quat(), vec3(0, fy, 0));
-  initContext.feet[1] = Transform3(quat(), vec3(0, -fy, 0));
+  initContext.feet[0] = Transform3(vec3(0, fy, 0));
+  initContext.feet[1] = Transform3(vec3(0, -fy, 0));
 
   // fill in the rest
-  vec3 betweenFeet = (initContext.feet[0] * vec3() + initContext.feet[1] * vec3()) / 2.0;
   initContext.stance = DOUBLE_LEFT;
-  initContext.comX = Eigen::Vector3d(betweenFeet.x(), 0.0, 0.0);
-  initContext.comY = Eigen::Vector3d(betweenFeet.y(), 0.0, 0.0);
+  initContext.comX = Eigen::Vector3d(0.0, 0.0, 0.0);
+  initContext.comY = Eigen::Vector3d(0.0, 0.0, 0.0);
   initContext.eX = 0.0;
   initContext.eY = 0.0;
-  initContext.pX = betweenFeet.x();
-  initContext.pY = betweenFeet.y();
-  
+  initContext.pX = 0.0;
+  initContext.pY = 0.0;
+
+  // apply COM IK for init context
+  walker.applyComIK(initContext);
+
+  /*
+  walker.traj.resize(1);
+  walker.refToTraj(initContext, walker.traj.back());
+  */
+
+
   walker.initialize(initContext);
 
   
@@ -543,6 +547,12 @@ int main(int argc, char** argv) {
   
   Footprint initLeftFoot = Footprint(initContext.feet[0], true);
   Footprint initRightFoot = Footprint(initContext.feet[1], false);
+
+  /*
+  double circle_max_step_length = 0.2; // maximum distance between steps
+  double circle_max_step_angle = M_PI / 12.0; // maximum angle between steps
+  double circle_distance = 5.0; // distance to go along circle
+  double circle_radius = 2.0; // radius of circle to move in
   
   std::vector<Footprint> footprints = walkCircle(circle_radius,
                                                  circle_distance,
@@ -553,22 +563,39 @@ int main(int argc, char** argv) {
                                                  &initRightFoot,
                                                  DOUBLE_LEFT);
 
+  */
+
+  std::vector<Footprint> footprints;
+
+  for (size_t i=0; i<8; ++i) {
+    bool is_left = i % 2;
+    footprints.push_back(Footprint(0, is_left ? fy : -fy, 0, is_left));
+  }
+
   
 
   //////////////////////////////////////////////////////////////////////
   // and then build up the walker
 
+
   walker.stayDogStay(startup_time * TRAJ_FREQ_HZ);
+
+
   for(std::vector<Footprint>::iterator it = footprints.begin(); it != footprints.end(); it++) {
     walker.addFootstep(*it);
   }
+
+
+
   walker.stayDogStay(shutdown_time * TRAJ_FREQ_HZ);
+  
 
   //////////////////////////////////////////////////////////////////////
   // have the walker run preview control and pass on the output
 
   walker.bakeIt();
   // validateOutputData(traj);
+
 
 #ifdef HAVE_HUBO_ACH
 
