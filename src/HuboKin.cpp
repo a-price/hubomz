@@ -29,17 +29,25 @@ HuboKin::KinConstants::KinConstants() {
 
   */
 
+  leg_l1 = 0.201256; // neck -> waist Z
+  leg_l2 = 0.0885021; // waist -> hip Y
+  leg_l3 = 0.167473; // waist -> hip Z
+  leg_l4 = 0.280007; // hip -> knee Z
+  leg_l5 = 0.279942; // knee -> ankle Z
+  leg_l6 = 0.105888; // ankle to foot Z
+
+  leg_limits << 
+    -1.5708, 1.5708,      // RHY
+    -0.488692, 0.488692,  // RHR
+    -1.48353, 1.6057,     // RHP
+    -0.0698132, 2.60054,  // RKN
+    -1.29154, 1.69297,    // RAP
+    -0.191986, 0.191986;  // RAR
+
   arm_l1 = 214.5/1000.0;        // neck to shoulder Y
   arm_l2 = 179.14/1000.0;       // ?
   arm_l3 = 181.59/1000.0;       // ?
   arm_l4 = 4.75*25.4/1000.0;    // ?
-
-  leg_l1 = (79.5+107)/1000.0;   // neck to waist Z 
-  leg_l2 = 88.43/1000.0;        // waist to hip  Y
-  leg_l3 = (289.47-107)/1000.0; // waist to hip  Z
-  leg_l4 = 300.03/1000.0;       // hip to knee
-  leg_l5 = 300.38/1000.0;       // knee to ankle
-  leg_l6 = 94.97/1000.0;        // ankle to foot
 
   arm_limits << 
     -2,   2,
@@ -49,13 +57,6 @@ HuboKin::KinConstants::KinConstants() {
     -2,   2,
     -1.4, 1.2;
 
-  leg_limits <<
-    -1.80,   0.0,
-    -0.58,   0.0,
-    -1.30,   1.30,
-    0.0,     2.50,
-    -1.26,   1.80,
-    -0.23,   0.31;
 
   arm_offset.setZero();
   leg_offset.setZero();
