@@ -2,63 +2,69 @@
 #include <math.h>
 #include <vector>
 #include "footprint.h"
-#include <Eigen/Dense>
 #include <iostream>
+#include "mzcommon/quat.h"
 
 using namespace std;
+using namespace fakerave;
 
-class Footprint {
-public:
-  Footprint(double x, double y, double theta, stance_t is_left) {
-    // Create translation vector
-    Eigen::Translation3d translation = Eigen::Translation3d(Eigen::Vector3d(x, y, 0));
-    // Create a rotation transform w/o translation
-    Eigen::Transform3d transform = Eigen::Transform3d(Eigen::AngleAxis(theta, Vector3f::UnitZ()));
-
-    // set internal transform to translation + rotation
-    this->transform = transform * translation;
+Footprint::Footprint(double x, double y, double theta, bool is_left) {
+    vec3 translation(x, y, 0);
+    Transform3 transform(quat::fromAxisAngle(vec3(0.0,0.0,1.0), theta), vec3(x, y, 0));
+    this->transform = transform;
     this->is_left = is_left;
 
-  }
+}
 
-  Footprint(){
+double Footprint::x() const { return this->transform.translation().x(); } 
+double Footprint::y() const{ return this->transform.translation().y(); } 
+double Footprint::theta() const {
+    vec3 forward = this->transform.rotFwd() * vec3(1.0, 0.0, 0.0);
+    return atan2(forward.y(), forward.x());
+} 
+
+
+Footprint::Footprint(){
     Footprint( 0.0, 0.0, 0.0, 0.0 );
-  }
+}
 
-  Eigen::Transform3d getTransform3d(){
+Transform3 Footprint::getTransform3() const {
 
     return transform;
-  }
+}
 
-  void setTransform3d(Eigen::Transform3d transform){
+void Footprint::setTransform3(Transform3 transform){
     this->transform = transform;
-  }
 }
 
 bool is_even(int i) {
-  return (i%2) == 0;
+    return (i%2) == 0;
 }
 
 bool is_odd(int i) {
-  return !is_even(i);
+    return !is_even(i);
 }
 
 vector<Footprint> walkLine(double dist, double width, double max_step_length) {
-  // Solve simple equation
-  const int K = int(ceil(dist/max_step_length) + 1e-10);
-  const double L = dist/K;
-  const int N = K+3;
-  vector<Footprint> res(N);
+    // Solve simple equation
+    const int K = int(ceil(dist/max_step_length) + 1e-10);
+    const double L = dist/K;
+    const int N = K+3;
+    vector<Footprint> res(N);
 
-  // Do all steps
-  for ( int i = 0; i < N; i++ ) {
-    res[i].x = (i-1)*L;
-    res[i].is_left = is_even(i);
-    res[i].y = width * (res[i].is_left-0.5)*2;
-  }
-  res[0].x = res[1].x = 0.0;
-  res[N-2].x = res[N-1].x = dist;
-  return res;
+    // Do all steps
+    for ( int i = 0; i < N; i++ ) {
+        double x = (i-1)*L;
+        double y = width * (is_even(i)-0.5)*2;
+        res[i] = Footprint(x, y, 0, is_even(i));
+    }
+
+    res[0] = Footprint(0, res[0].y(), 0, res[0].is_left);
+    res[1] = Footprint(0, res[1].y(), 0, res[1].is_left);
+    res[N-1] = Footprint(dist, res[N-1].y(), 0, res[N-1].is_left);
+    res[N-2] = Footprint(dist, res[N-2].y(), 0, res[N-2].is_left);
+
+    return res;
 }
 
 vector<Footprint> walkCircle(double radius,
@@ -75,17 +81,15 @@ vector<Footprint> walkCircle(double radius,
     assert(max_step_angle >= -3.14159265359);
     assert(max_step_angle < 3.14159265359);
     assert((left_is_stance_foot ? init_left : init_right)
-          && "The stance foot must not be null");
+           && "The stance foot must not be null");
 
     // select stance foot, fill out transforms
     Footprint* stance_foot;
     if (left_is_stance_foot) stance_foot = init_left;
     else stance_foot = init_right;
-    Eigen::Transform<double,2,Eigen::Affine> T_stance_to_world;
-    T_stance_to_world =
-        Eigen::Translation<double, 2>(stance_foot->x, stance_foot->y)
-        * Eigen::Rotation2D<double>(stance_foot->theta)
-        * Eigen::Translation<double, 2>(0, left_is_stance_foot?-width:width);
+    Transform3 T_circle_to_world =
+        stance_foot->transform
+        * Transform3(quat(), vec3(0, left_is_stance_foot?-width:width, 0));
 
     double alpha = distance / abs(radius);
     double outer_dist = (abs(radius) + width) * alpha;
@@ -148,11 +152,7 @@ vector<Footprint> walkCircle(double radius,
 
     // run through results transforming them back into the original frame of reference
     for(std::vector<Footprint>::iterator it = result.begin(); it < result.end(); it++) {
-        Eigen::Vector2d t(it->x, it->y);
-        t = T_stance_to_world * t;
-        it->x = t.x();
-        it->y = t.y();
-        it->theta = it->theta + stance_foot->theta;
+        it->transform = T_circle_to_world * it->transform;
     }
     result.insert(result.begin(), Footprint(*stance_foot));
 

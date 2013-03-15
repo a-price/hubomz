@@ -27,10 +27,10 @@ int main() {
     for(std::vector<Footprint>::iterator it = footprints.begin(); it < footprints.end(); it++) {
         // std::cout << "[" << it->x << ", " << it->y << " @ " << it->theta << "]" << std::endl;
         std::cout
-            << it->x << ", "
-            << it->y << ", "
-            << .3 * cos(it->theta) << ", "
-            << .3 * sin(it->theta)
+            << it->x() << ", "
+            << it->y() << ", "
+            << .3 * cos(it->theta()) << ", "
+            << .3 * sin(it->theta())
             << std::endl;
     }
 	return 0;
