@@ -15,7 +15,7 @@ void ZMPWalkGenerator::initialize(const ZMPReferenceContext& current) {
 * @function: ZMPReferenceContext& getLastRef()
 * @brief: gets the last ZMPReferenceContext from ref or the initContext
 */
-const ZMPWalkGenerator::ZMPReferenceContext& getLastRef() {
+const ZMPReferenceContext& ZMPWalkGenerator::getLastRef() {
     return ref.empty() ? initContext : ref.back();
 }
 
@@ -101,8 +101,6 @@ void ZMPWalkGenerator::bakeIt() {
     ref.clear();
 
 }
-
-private:
 
 double ZMPWalkGenerator::sigmoid(double x) {
     return 3*x*x - 2*x*x*x;
