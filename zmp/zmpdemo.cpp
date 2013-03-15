@@ -1,12 +1,12 @@
 #include "hubo-zmp.h"
 #include <HuboPlus.h>
-#include <ZmpPreview.h>
 #include <math.h>
 #include <mzcommon/MzGlutApp.h>
 #include <mzcommon/TimeUtil.h>
 #include <getopt.h>
 
 #include "zmpwalkgenerator.h"
+#include "footprint.h"
 
 using namespace fakerave;
 
