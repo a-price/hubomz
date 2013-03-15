@@ -16,9 +16,6 @@ size_t seconds_to_ticks(double s) {
   return size_t(round(s*TRAJ_FREQ_HZ));
 }
 /*TODO remove this
-double sigmoid(double x) {
-  return 3*x*x - 2*x*x*x;
-}
 */
 const int stance_foot_table[4] = { 0, 1, 0, 1 };
 const int swing_foot_table[4] = { -1, -1, 1, 0 };
