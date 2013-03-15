@@ -18,6 +18,7 @@ public:
   Transform3 transform;
   bool is_left;
 
+  Footprint(Transform3 t, bool is_left);
   Footprint(double x, double y, double theta, bool is_left);
   Footprint();
 

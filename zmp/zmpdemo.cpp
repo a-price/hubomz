@@ -545,19 +545,8 @@ int main(int argc, char** argv) {
   //////////////////////////////////////////////////////////////////////
   // build ourselves some footprints
   
-  Transform3 initLeftTransform = initContext.feet[0];
-  Transform3 initRightTransform = initContext.feet[1];
-  vec3 initLeftPosition = initLeftTransform * vec3();
-  vec3 initRightPosition = initRightTransform * vec3();
-  
-  Footprint initLeftFoot = Footprint(initLeftPosition.x(),
-                                     initLeftPosition.y(),
-                                     0.0, // FIXME: actually pull rotation out of initContext
-                                     true);
-  Footprint initRightFoot = Footprint(initRightPosition.x(),
-                                      initRightPosition.y(),
-                                      0.0, // FIXME: actually pull rotation out of initContext
-                                      false);
+  Footprint initLeftFoot = Footprint(initContext.feet[0], true);
+  Footprint initRightFoot = Footprint(initContext.feet[1], false);
   
   std::vector<Footprint> footprints = walkCircle(circle_radius,
                                                  circle_distance,

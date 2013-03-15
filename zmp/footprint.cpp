@@ -8,12 +8,15 @@
 using namespace std;
 using namespace fakerave;
 
+Footprint::Footprint(Transform3 t, bool is_left) {
+    this->transform = t;
+    this->is_left = is_left;
+}
 Footprint::Footprint(double x, double y, double theta, bool is_left) {
     vec3 translation(x, y, 0);
     Transform3 transform(quat::fromAxisAngle(vec3(0.0,0.0,1.0), theta), vec3(x, y, 0));
     this->transform = transform;
     this->is_left = is_left;
-
 }
 
 double Footprint::x() const { return this->transform.translation().x(); } 
