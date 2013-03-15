@@ -11,6 +11,10 @@ bool is_even(int i) {
   return (i%2) == 0;
 }
 
+bool is_odd(int i) {
+  return !is_even(i);
+}
+
 vector<Footprint> walkLine(double dist, double width, double max_step_length) {
   // Solve simple equation
   const int K = int(ceil(dist/max_step_length) + 1e-10);
@@ -40,8 +44,8 @@ vector<Footprint> walkCircle(double radius,
     assert(distance > 0);
     assert(width > 0);
     assert(max_step_length > 0);
-    /* assert(max_step_angle >= -3.14159265359); */
-    /* assert(max_step_angle < 3.14159265359); */
+    assert(max_step_angle >= -3.14159265359);
+    assert(max_step_angle < 3.14159265359);
     assert((left_is_stance_foot ? init_left : init_right)
           && "The stance foot must not be null");
 
@@ -55,20 +59,21 @@ vector<Footprint> walkCircle(double radius,
         * Eigen::Rotation2D<double>(stance_foot->theta)
         * Eigen::Translation<double, 2>(0, left_is_stance_foot?-width:width);
 
-    double alpha = distance / radius;
-    double outer_dist = (radius + width) * alpha;
+    double alpha = distance / abs(radius);
+    double outer_dist = (abs(radius) + width) * alpha;
     int K_step_length = ceil(outer_dist / max_step_length);
     int K_angle = ceil(alpha / max_step_angle);
     int K = max(K_step_length, K_angle);
+    double dTheta = alpha/K * radius/(abs(radius));
 
-    /* // minimize K subject to conditions, compute resulting dTheta */
-    /* int K = ceil(distance / max_step_angle * abs((radius - width) / radius)); */
-    /* double dTheta = distance / (K * radius); */
-    /* if (abs(dTheta) > max_step_angle) { */
-    /*     K = ceil(distance / abs(radius) * max_step_angle); */
-    /*     dTheta = distance / (K * radius); */
-    /* } */
-    double dTheta = alpha/K;
+#ifdef DEBUG
+    cout << "outer_dist IS " << outer_dist << endl;
+    cout << outer_dist / max_step_length << endl;
+    cout << "Ksl IS " << K_step_length << endl;
+    cout << "Kang IS " << K_angle << endl;
+    cout << "K IS " << K << endl;
+    cout << "dTheta IS " << dTheta << endl;
+#endif
 
     // init results list
     vector<Footprint> result;
@@ -112,7 +117,6 @@ vector<Footprint> walkCircle(double radius,
                                    theta_last,
                                    false));
     }
-    result.insert(result.begin(), Footprint(*stance_foot));
 
     // run through results transforming them back into the original frame of reference
     for(std::vector<Footprint>::iterator it = result.begin(); it < result.end(); it++) {
@@ -122,6 +126,7 @@ vector<Footprint> walkCircle(double radius,
         it->y = t.y();
         it->theta = it->theta + stance_foot->theta;
     }
+    result.insert(result.begin(), Footprint(*stance_foot));
 
     // return the result
     return result;

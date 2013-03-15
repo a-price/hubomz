@@ -2,6 +2,9 @@
 #define  FOOTPRINT_INC
 
 #include <vector>
+#include <iostream>
+
+using namespace std;
 
 struct Footprint {
   double x;
@@ -13,6 +16,11 @@ struct Footprint {
   /* Footprint(); */
   Footprint(double x, double y, double theta, double is_left): x(x), y(y), theta(theta), is_left(is_left){};
   Footprint(): x(0.0), y(0.0), theta(0.0), is_left(false){};
+
+  friend ostream& operator<<(ostream& os, const Footprint& fp) {
+    os << "x: " << fp.x << "\ty: " << fp.y << "\ttheta: " << fp.theta << "\t " << (fp.is_left ? "Left" : "Right");
+    return os;
+  }
 };
 
 std::vector<Footprint> walkLine(double dist, /// The distance to walk in meters
