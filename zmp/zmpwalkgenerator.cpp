@@ -53,9 +53,30 @@ const ZMPReferenceContext& ZMPWalkGenerator::getLastRef() {
  * @return: void
  */
 void ZMPWalkGenerator::stayDogStay(size_t stay_ticks) {
-    for (size_t i=0; i<stay_ticks; ++i) {
-        ref.push_back(getLastRef());
-    }
+
+  ZMPReferenceContext cur = getLastRef();
+
+  vec3 zmp_start(cur.pX, cur.pY, 0);
+  vec3 zmp_end = 0.5 * (cur.feet[0].translation() + cur.feet[1].translation());
+
+  stance_t double_stance = DOUBLE_LEFT;
+
+  for (size_t i=0; i<stay_ticks; ++i) {
+
+    double u = double(i) / double(stay_ticks - 1);
+    double c = sigmoid(u);
+    
+    cur.stance = double_stance;
+    
+    vec3 cur_zmp = zmp_start + (zmp_end - zmp_start) * c;
+
+    cur.pX = cur_zmp.x();
+    cur.pY = cur_zmp.y();
+    
+    ref.push_back(cur);
+    
+  }
+
 }
 
 
@@ -75,11 +96,17 @@ void ZMPWalkGenerator::addFootstep(const Footprint& fp) {
     const ZMPReferenceContext start_context = getLastRef();
 
     // figure out the stances for this movement
-    stance_t double_stance = fp.is_left ? DOUBLE_LEFT : DOUBLE_RIGHT;
-    stance_t single_stance = fp.is_left ? SINGLE_LEFT : SINGLE_RIGHT;
+    stance_t double_stance = fp.is_left ? DOUBLE_RIGHT : DOUBLE_LEFT;
+    stance_t single_stance = fp.is_left ? SINGLE_RIGHT : SINGLE_LEFT;
 
     // figure out swing foot and stance foot for accessing
     int swing_foot = fp.is_left ? 0 : 1;
+    int stance_foot = 1-swing_foot;
+
+    assert(swing_foot == 0);
+    assert(stance_foot == 1);
+    assert(double_stance == DOUBLE_RIGHT);
+    assert(single_stance == SINGLE_RIGHT);
 
     // figure out where our body is going to end up if we put our foot there
     quat body_rot_end = quat::slerp(start_context.feet[swing_foot].rotation(),
@@ -87,7 +114,7 @@ void ZMPWalkGenerator::addFootstep(const Footprint& fp) {
                                     0.5);
 
     // figure out the start and end positions of the zmp
-    vec3 zmp_end = fp.transform.translation();
+    vec3 zmp_end = start_context.feet[stance_foot].translation();
     vec3 zmp_start = vec3(start_context.pX, start_context.pX, 0);
 
     // figure out how far the swing foot will be moving
@@ -108,7 +135,7 @@ void ZMPWalkGenerator::addFootstep(const Footprint& fp) {
         // rotation. we run the sigmoid across both double and isngle
         // support so we don't try to whip the body across for the
         // split-second we're in double support.
-        double u = double(i) / double(single_ticks + double_ticks - 1);
+        double u = double(i) / double(double_ticks - 1);
         double c = sigmoid(u);
         
         ZMPReferenceContext cur_context;
@@ -207,6 +234,7 @@ void ZMPWalkGenerator::runZMPPreview() {
     for(size_t i=0; i<ref.size(); i++) {
         zmprefX(i) = ref[i].pX;
         zmprefY(i) = ref[i].pY;
+	std::cerr << "zmpref(" << i << ") = " << ref[i].pX << ", " << ref[i].pY << "\n";
     }
 
     // generate COM position for each tick using zmp preview update
@@ -260,6 +288,17 @@ void ZMPWalkGenerator::applyComIK(ZMPReferenceContext& cur) {
   cur.ikMode[HuboPlus::MANIP_R_FOOT] = (cur.stance == SINGLE_LEFT) ? HuboPlus::IK_MODE_WORLD : HuboPlus::IK_MODE_SUPPORT;
   cur.ikMode[HuboPlus::MANIP_L_HAND] = HuboPlus::IK_MODE_FIXED;
   cur.ikMode[HuboPlus::MANIP_R_HAND] = HuboPlus::IK_MODE_FIXED;
+
+  // only moving left foot in current code
+  assert(cur.stance != SINGLE_LEFT);
+  if (cur.stance == SINGLE_RIGHT) {
+    std::cout << "ik mode for left foot is " << cur.ikMode[0] << "\n";
+    assert(cur.ikMode[0] == HuboPlus::IK_MODE_WORLD);
+  } else {
+    assert(cur.ikMode[0] == HuboPlus::IK_MODE_SUPPORT);
+  }
+
+  cur.ikMode[1] = HuboPlus::IK_MODE_SUPPORT;
         
   // set up ikvalid
   bool ikvalid[4];
@@ -322,7 +361,7 @@ void ZMPWalkGenerator::applyComIK(ZMPReferenceContext& cur) {
 	std::cerr << "\n";
       }
     }
-    exit(1);
+    //exit(1);
   } // finish freaking out
 
   // and we're done!

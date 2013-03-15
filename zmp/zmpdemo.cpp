@@ -567,8 +567,8 @@ int main(int argc, char** argv) {
 
   std::vector<Footprint> footprints;
 
-  for (size_t i=0; i<8; ++i) {
-    bool is_left = i % 2;
+  for (size_t i=0; i<1; ++i) {
+    bool is_left = true;
     footprints.push_back(Footprint(0, is_left ? fy : -fy, 0, is_left));
   }
 
