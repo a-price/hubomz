@@ -39,6 +39,8 @@ public:
   vec3 forces[2];
   vec3 torques[2];
   vec3 actualCom;
+  vec3 actualComVel;
+  vec3 actualComAcc;
 
   Transform3Array xforms;
 
@@ -120,15 +122,15 @@ public:
     
     for (int a=0; a<3; ++a) {
       actualCom[a] = cur.com[a][0];
+      actualComVel[a] = cur.com[a][1];
+      actualComAcc[a] = cur.com[a][2];
       for (int f=0; f<2; ++f) {
 	forces[f][a] = cur.forces[f][a];
 	torques[f][a] = cur.torque[f][a]; // TODO: FIXME: pluralization WTF?
       }
     }
 
-			    
-
-    std::cerr << "current index: " << cur_index << "/" << traj.size() << "\n";  
+    std::cerr << "current index: " << cur_index << "/" << traj.size() << ", stance=" << cur.stance << "\n";  
     
   }
 
@@ -137,11 +139,15 @@ public:
     int dmin = -cur_index;
     int dmax = traj.size()-1-cur_index;
     delta = std::max(dmin, std::min(delta, dmax));
-
+    if (!delta) { return; }
 
     int dd = delta < 0 ? -1 : 1;
+    delta *= dd;
+    assert(delta > 0);
 
-    for ( ; delta != 0; delta -= dd, cur_index += dd) {
+    for (int i=0; i<delta; ++i) {
+
+      cur_index += dd;
 
       // see if the stance foot has swapped
       int new_stance_foot = stance_foot_table[traj[cur_index].stance];
@@ -154,8 +160,6 @@ public:
       setStateFromTraj(traj[cur_index]);
 
     }
-
-    std::cerr << "current index: " << cur_index << "/" << traj.size() << "\n";
 
   }
 
@@ -187,16 +191,17 @@ public:
 
     hplus.kbody.renderSkeleton(xforms, quadric);
 
+    // Force and torque arrows
     for (int f=0; f<2; ++f) {
       Transform3 fk = hplus.kbody.manipulatorFK(xforms, f);
       glPushMatrix();
       glstuff::mult_transform(fk);
+      glTranslated(0, 0, hplus.footAnkleDist);
       real fscl = 1.0/400;
-      real tscl = 0.01;
       glColor3ub(255,255,0);
       glstuff::draw_arrow(quadric, vec3(0), fscl*forces[f], 0.02);
       glColor3ub(255,128,0);
-      glstuff::draw_arrow(quadric, vec3(0), tscl*torques[f], 0.02);
+      glstuff::draw_arrow(quadric, vec3(0), fscl*torques[f], 0.02);
 
       glPopMatrix();
     }
@@ -207,12 +212,14 @@ public:
     glPushMatrix();
     glstuff::mult_transform(stance_foot_xform);
 
+    // CoM sphere
     glColor3ub(255, 0, 255);
     glPushMatrix();
-    glTranslated(actualCom[0], actualCom[1], actualCom[2]);
+    glTranslated(actualCom[0], actualCom[1], actualCom[2]+hplus.footAnkleDist);
     gluSphere(quadric, 0.05, 32, 24);
     glPopMatrix();
 
+    // CoM projection disk
     glPushMatrix();
     glTranslated(actualCom[0], actualCom[1], 0.01);
     glColor3ub(127, 0, 127);
@@ -221,6 +228,15 @@ public:
     gluDisk(quadric, 0, 0.05, 32, 1);
     glPopMatrix();
 
+    // Acceleration arrow
+    real fscl = 1.0/2.0;
+    glPushMatrix();
+    glTranslated(actualCom[0], actualCom[1], actualCom[2]+hplus.footAnkleDist);
+    glColor3ub(0, 255, 0);
+    glstuff::draw_arrow(quadric, vec3(0), fscl*actualComAcc, 0.02);
+    glPopMatrix();
+    
+    
     glPopMatrix();
 
     glutSwapBuffers();
@@ -316,7 +332,7 @@ void validateOutputData(TrajVector& traj) {
     double maxJointVel=0;
     double jointVel;
     const double jointVelTol = 6.0; // radians/s
-    for (int n=0; n<(traj.size()-1); n++) {
+    for (int n=0; n<(int)(traj.size()-1); n++) {
       for (int j=0; j<HUBO_JOINT_COUNT; j++) {  
         jointVel = (traj[n+1].angles[j] - traj[n].angles[j])/dt;
         if (jointVel > jointVelTol) {
@@ -337,17 +353,20 @@ void usage(std::ostream& ostr) {
     "\n"
     "  -g, --show-gui                    Show a GUI after computing trajectories.\n"
     "  -A, --use-ach                     Send trajectory via ACH after computing.\n"
-    "  -h, --com-height=NUMBER           Height of the center of mass\n"
     "  -f, --foot-y=NUMBER               Half-distance between feet\n"
     "  -L, --foot-liftoff=NUMBER         Vertical liftoff distance of swing foot\n"
     "  -x, --step-distance=NUMBER        Forward distance between front & rear foot\n"
-    "  -z, --zmp-y=NUMBER                Lateral distance from ankle to ZMP\n"
+    "  -Y, --zmp-y=NUMBER                Lateral distance from ankle to ZMP\n"
+    "  -X, --zmp-x=NUMBER                Forward distance from ankle to ZMP\n"
+    "  -h, --com-height=NUMBER           Height of the center of mass\n"
     "  -l, --lookahead-time=NUMBER       Lookahead window for ZMP preview controller\n"
     "  -p, --startup-time=NUMBER         Initial time spent with ZMP stationary\n"
     "  -n, --shutdown-time=NUMBER        Final time spent with ZMP stationary\n"
     "  -d, --double-support-time=NUMBER  Double support time\n"
     "  -s, --single-support-time=NUMBER  Single support time\n"
     "  -a, --angle-weight=NUMBER         Angle weight for COM IK\n"
+    "  -c, --step-count=NUMBER           Number of steps to take\n"
+    "  -R, --zmp-jerk-penalty=NUMBER     R-value for ZMP preview controller\n"
     "  -H, --help                        See this message\n";
     
 }
@@ -389,6 +408,7 @@ int main(int argc, char** argv) {
 
   double fy = 0.085; // half of horizontal separation distance between feet
   double zmpy = 0; // lateral displacement between zmp and ankle
+  double zmpx = 0;
   double fz = 0.05; // foot liftoff height
   double fx = 0.0; // step length
 
@@ -397,8 +417,11 @@ int main(int argc, char** argv) {
   double shutdown_time = 1.0;
   double double_support_time = 0.05;
   double single_support_time = 0.70;
-  double com_height = 0.58; // height of COM above ground
+
+  double com_height = 0.48; // height of COM above ANKLE
   double com_ik_ascl = 0;
+
+  double zmp_R = 1e-8; // jerk penalty on ZMP controller
 
   size_t n_steps = 8; // how many steps?
 
@@ -408,7 +431,8 @@ int main(int argc, char** argv) {
     { "foot-y",              required_argument, 0, 'f' },
     { "foot-liftoff",        required_argument, 0, 'L' },
     { "step-distance",       required_argument, 0, 'x' },
-    { "zmp-y",               required_argument, 0, 'z' },
+    { "zmp-y",               required_argument, 0, 'Y' },
+    { "zmp-x",               required_argument, 0, 'X' },
     { "com-height",          required_argument, 0, 'h' },
     { "lookahead-time",      required_argument, 0, 'l' },
     { "startup-time",        required_argument, 0, 'p' },
@@ -417,11 +441,12 @@ int main(int argc, char** argv) {
     { "single-support-time", required_argument, 0, 's' },
     { "step-count",          required_argument, 0, 'c' },
     { "angle-weight",        required_argument, 0, 'a' },
+    { "zmp-jerk-penalty",    required_argument, 0, 'R' },
     { "help",                no_argument,       0, 'H' },
     { 0,                     0,                 0,  0  },
   };
 
-  const char* short_options = "gAf:L:z:h:l:p:n:d:s:c:a:H";
+  const char* short_options = "gAf:L:x:Y:X:h:l:p:n:d:s:c:a:R:H";
 
   int opt, option_index;
 
@@ -431,7 +456,9 @@ int main(int argc, char** argv) {
     case 'A': use_ach = true; break;
     case 'f': fy = getdouble(optarg); break;
     case 'L': fz = getdouble(optarg); break;
-    case 'z': zmpy = getdouble(optarg); break;
+    case 'x': fx = getdouble(optarg); break;
+    case 'Y': zmpy = getdouble(optarg); break;
+    case 'X': zmpx = getdouble(optarg); break;
     case 'h': com_height = getdouble(optarg); break;
     case 'l': lookahead_time = getdouble(optarg); break;
     case 'p': startup_time = getdouble(optarg); break;
@@ -440,6 +467,7 @@ int main(int argc, char** argv) {
     case 's': single_support_time = getdouble(optarg); break;
     case 'a': com_ik_ascl = getdouble(optarg); break;
     case 'c': n_steps = getlong(optarg); break;
+    case 'R': zmp_R = getdouble(optarg); break;
     case 'H': usage(std::cout); exit(0); break;
     default:  usage(std::cerr); exit(1); break;
     }
@@ -463,12 +491,17 @@ int main(int argc, char** argv) {
     }
   }
 
+  if (!hubofile) { usage(std::cerr); exit(1); }
+
   HuboPlus hplus(hubofile);
+
+  const double& l6 = hplus.footAnkleDist;
+  
+
 
   size_t step_ticks = double_support_ticks + single_support_ticks;
   size_t total_ticks = startup_ticks + n_steps * step_ticks + shutdown_ticks;
 
-  double zmp_R = 1e-10; // gain for ZMP controller
   double zmp_dt = 1.0/TRAJ_FREQ_HZ; // delta t for ZMP preview controller
   
   TimeStamp t0 = TimeStamp::now();
@@ -499,7 +532,7 @@ int main(int argc, char** argv) {
     stance[cur_tick] = s;
     footz(cur_tick) = 0;
     for (int f=0; f<2; ++f) { footx(cur_tick,f) = cur_foot_x[f]; }
-    zmprefX(cur_tick) = 0; // set zmprefX x to zero
+    zmprefX(cur_tick) = zmpx; // set zmprefX x to zero
     zmprefY(cur_tick++) = p; // set zmprefY y to zero
   }
 
@@ -520,7 +553,7 @@ int main(int argc, char** argv) {
       }
       
       int stance_foot = stance_foot_table[s];
-      zmprefX(cur_tick) =  cur_foot_x[stance_foot]; // set zmprefX x for current tick to sway distance
+      zmprefX(cur_tick) =  cur_foot_x[stance_foot] + zmpx; // set zmprefX x for current tick to sway distance
       zmprefY(cur_tick++) = p; // set zmprefY y for current tick to sway distance
     }
     
@@ -548,7 +581,7 @@ int main(int argc, char** argv) {
       
       
       footx(cur_tick, swing_foot) = cur_foot_x[swing_foot] + fdist*(a - sin(a))/(2*M_PI); // the X component of a cycloid
-      zmprefX(cur_tick) = cur_foot_x[stance_foot]; // set zmprefX x for current tick
+      zmprefX(cur_tick) = cur_foot_x[stance_foot] + zmpx; // set zmprefX x for current tick
       zmprefY(cur_tick++) = p; // set zmprefY y for current tick to sway distance
     }
     s = next_stance_table[s]; // go to next stance phase
@@ -562,7 +595,7 @@ int main(int argc, char** argv) {
     stance[cur_tick] = s;
     footz(cur_tick) = 0;
     for (int f=0; f<2; ++f) { footx(cur_tick,f) = cur_foot_x[f]; }
-    zmprefX(cur_tick) = 0.5*(cur_foot_x[0]+cur_foot_x[1]); // set zmprefX x to 0
+    zmprefX(cur_tick) = 0.5*(cur_foot_x[0]+cur_foot_x[1]) + zmpx; // set zmprefX x to 0
     zmprefY(cur_tick++) = p; // set zmprefY y to 0
   }
 
@@ -646,7 +679,8 @@ int main(int argc, char** argv) {
   TrajVector traj;
   
   // loop thru trajectory and make full-body joint trajectory
-  desiredCom = vec3(comX(0), comY(0), com_height);
+  desiredCom = vec3(comX(0), comY(0), com_height+l6);
+
   for (size_t i=0; i<total_ticks; ++i) {
     // loop through stance and swing foot tables
     int stance_foot = stance_foot_table[stance[i]];
@@ -692,7 +726,7 @@ int main(int argc, char** argv) {
     
     // set com desired position
     vec3 desiredComTmp(desiredCom);
-    desiredCom = vec3(comX(i), comY(i), com_height);
+    desiredCom = vec3(comX(i), comY(i), com_height+l6);
 
     if ((desiredCom - desiredComTmp).norm() > .01 ) {
       assert( 0 && "Bad desiredCom" );
@@ -710,6 +744,8 @@ int main(int argc, char** argv) {
       vec3 dp[4], dq[4];
 
       kbody.transforms(state.jvalues, xforms);
+
+      vec3 actualCom = state.xform() * kbody.com(xforms);
 
       for (int i=0; i<4; ++i) {
 
@@ -732,7 +768,9 @@ int main(int argc, char** argv) {
  
       if (!ok) {
 	std::cerr << "IK FAILURE!\n\n";
-	std::cerr << "  body: " << state.xform() << "\n\n";
+	std::cerr << "  body:        " << state.xform() << "\n";
+	std::cerr << "  desired com: " << desiredCom << "\n";
+	std::cerr << "  actual com:  " << actualCom << "\n\n";
 	for (int i=0; i<4; ++i) { 
 	  if (mode[i] != HuboPlus::IK_MODE_FIXED &&
 	      mode[i] != HuboPlus::IK_MODE_FREE) {

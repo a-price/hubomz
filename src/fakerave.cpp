@@ -1291,8 +1291,6 @@ namespace fakerave {
     const Transform3 cur_inv = cur.inverse();
     const Transform3 pre_inv = pre.inverse();
 
-    
-    const Transform3 post = cur_inv * pre * cur;
     const Transform3 post_inv = cur_inv * pre_inv * cur;
 
     b.xform = pre * b.xform;
