@@ -6,6 +6,10 @@
 
 using namespace std;
 
+/**
+ * \struct Footprint
+ * \brief Contains the 2D position and orientation of a foot placement, plus whether this location refers to the left or right foot.
+ */
 struct Footprint {
   double x;
   double y;
@@ -23,11 +27,19 @@ struct Footprint {
   }
 };
 
+/**
+ * \fn walkLine
+ * \brief Generates a foot plan for walking in a straight line (parallel to the robot's current orientation)
+ */
 std::vector<Footprint> walkLine(double dist, /// The distance to walk in meters
     double width, /// The ground distance between the center of the robot to the center of a foot
     double max_step_length /// The maximum allowed length the robot may step
   );
 
+/**
+ * \fn walkCircle
+ * \brief Generates a foot plan for walking in a circular arc of a given radius.
+ */
 std::vector<Footprint> walkCircle(double radius, /// The radius of the circle to walk in
                              double distance, /// The distance to walk along the circle
                              double width, /// The distance between the center of the robot and the center of a foot
