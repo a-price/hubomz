@@ -4,15 +4,15 @@
 #include <vector>
 
 class Footprint {
-  double x;
-  double y;
-  double theta;
+  Eigen::Transform3d transform;
   stance_t is_left;
 
-  /* Footprint(double x, double y, double theta, double is_left); */
-  /* Footprint(); */
-  Footprint(double x, double y, double theta, double is_left): x(x), y(y), theta(theta), is_left(is_left){};
-  Footprint(): x(0.0), y(0.0), theta(0.0), is_left(false){};
+  Footprint(double x, double y, double theta, stance_t is_left);
+  Footprint();
+
+  Eigen::Transform3d getTransform3d();
+  void setTransform3d(Eigen::Transform3d transform);
+
 };
 
 std::vector<Footprint> walkLine(double dist, /// The distance to walk in meters
