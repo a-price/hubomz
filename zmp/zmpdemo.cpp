@@ -426,7 +426,6 @@ int main(int argc, char** argv) {
 
   double com_height = 0.48; // height of COM above ANKLE
   double com_ik_ascl = 0;
-
   double zmp_R = 1e-8; // jerk penalty on ZMP controller
 
   const struct option long_options[] = {
@@ -504,7 +503,7 @@ int main(int argc, char** argv) {
   // build initial state
 
   // the actual state
-  ZMPWalkGenerator walker;
+  ZMPWalkGenerator walker(hplus);
   ZMPReferenceContext initContext;
 
   // helper variables and classes

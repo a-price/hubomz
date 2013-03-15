@@ -1,6 +1,6 @@
 #include "zmpwalkgenerator.h"
 
-ZMPWalkGenerator::ZMPWalkGenerator() { }
+ZMPWalkGenerator::ZMPWalkGenerator(HuboPlus& _hplus) : hplus(_hplus) { }
 
 // these all modify the current context but do not immediately affect traj
 

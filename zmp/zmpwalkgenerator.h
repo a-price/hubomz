@@ -29,7 +29,7 @@ public:
 class ZMPWalkGenerator {
 public:
     
-    ZMPWalkGenerator();
+    ZMPWalkGenerator(HuboPlus& _hplus);
     
     const HuboPlus& hplus;
     double com_height;
