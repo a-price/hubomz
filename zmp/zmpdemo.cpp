@@ -546,10 +546,10 @@ int main(int argc, char** argv) {
   //////////////////////////////////////////////////////////////////////
   // build ourselves some footprints
   
+  /*
   Footprint initLeftFoot = Footprint(initContext.feet[0], true);
   Footprint initRightFoot = Footprint(initContext.feet[1], false);
 
-  /*
   double circle_max_step_length = 0.2; // maximum distance between steps
   double circle_max_step_angle = M_PI / 12.0; // maximum angle between steps
   double circle_distance = 5.0; // distance to go along circle
@@ -567,10 +567,14 @@ int main(int argc, char** argv) {
   */
 
   std::vector<Footprint> footprints;
+  double cur_x[2] = { 0, 0 };
 
   for (size_t i=0; i<8; ++i) {
     bool is_left = i%2;
-    footprints.push_back(Footprint(0, is_left ? fy : -fy, 0, is_left));
+    int swing = is_left ? 0 : 1;
+    int stance = 1-swing;
+    cur_x[swing] = cur_x[stance] + 0.05;
+    footprints.push_back(Footprint(cur_x[swing], is_left ? fy : -fy, 0, is_left));
   }
 
   
