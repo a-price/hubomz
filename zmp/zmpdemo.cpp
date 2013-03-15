@@ -15,11 +15,11 @@ typedef std::vector< zmp_traj_element_t > TrajVector;
 size_t seconds_to_ticks(double s) {
   return size_t(round(s*TRAJ_FREQ_HZ));
 }
-
+/*TODO remove this
 double sigmoid(double x) {
   return 3*x*x - 2*x*x*x;
 }
-
+*/
 const int stance_foot_table[4] = { 0, 1, 0, 1 };
 const int swing_foot_table[4] = { -1, -1, 1, 0 };
 
@@ -292,10 +292,10 @@ public:
 
 };
 
-/*
- * @function: validateCOMTraj(Eigen::MatrixXd& comX, Eigen::MatrixXd& comY)
- * @brief: validation of COM output trajectory data
- * @return: void
+/**
+* @function: validateCOMTraj(Eigen::MatrixXd& comX, Eigen::MatrixXd& comY) 
+* @brief: validation of COM output trajectory data
+* @return: void
 */
 void validateCOMTraj(Eigen::MatrixXd& comX, Eigen::MatrixXd& comY) {
     const double dt = 1.0/TRAJ_FREQ_HZ;
@@ -324,10 +324,10 @@ void validateCOMTraj(Eigen::MatrixXd& comX, Eigen::MatrixXd& comY) {
 
 }
   
-/*
- * @function: validateOutputData(TrajVector& traj)
- * @brief: validation of joint angle output trajectory data
- * @return: void
+/**
+* @function: validateOutputData(TrajVector& traj)
+* @brief: validation of joint angle output trajectory data
+* @return: void
 */
 void validateOutputData(TrajVector& traj) {
     const double dt = 1.0/TRAJ_FREQ_HZ;
