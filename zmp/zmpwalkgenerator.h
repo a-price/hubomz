@@ -62,6 +62,7 @@ private:
     void runZMPPreview();
     // this runs the COM IK on every dang thing in reference to fill
     // in the kstate
+
     void runCOMIK();
     // this dumps everything into traj
     void dumpTraj();

@@ -11,14 +11,22 @@ void ZMPWalkGenerator::initialize(const ZMPReferenceContext& current) {
 
 }
 
+/**
+* @function: ZMPReferenceContext& getLastRef()
+* @brief: gets the last ZMPReferenceContext from ref or the initContext
+*/
 const ZMPWalkGenerator::ZMPReferenceContext& getLastRef() {
     return ref.empty() ? initContext : ref.back();
 }
 
 
-// these will add walk contexts to the back of ref and the new
-// contexts don't have comX, comY, eX, eY however, the kstate will
-// have body orientation set correctly and upper body joints
+/**
+* @function: stayDogStay(size_t stay_ticks)
+* @brief: these will add walk contexts to the back of ref and the new
+*         contexts don't have comX, comY, eX, eY however, the kstate will
+*         have body orientation set correctly and upper body joints
+* @return: void
+*/
 void ZMPWalkGenerator::stayDogStay(size_t stay_ticks) {
        
     for (size_t i=0; i<stay_ticks; ++i) {
@@ -76,7 +84,12 @@ void ZMPWalkGenerator::addFootstep(const Footprint& fp) {
 
         
 }
-
+/**
+* @function: bakeIt()
+* @brief: clears a trajectory, runs ZMP Preview Controller
+*         run COM IK, dumps out trajectory.
+* @return: void
+*/
 void ZMPWalkGenerator::bakeIt() {
     traj.clear();
     runZMPPreview();
@@ -94,11 +107,12 @@ private:
 double ZMPWalkGenerator::sigmoid(double x) {
     return 3*x*x - 2*x*x*x;
 }
-/* @function: runZMPPreview()
- * @brief: run ZMP preview controller on entire reference and creates trajectory for COM pos/vel/acc in X and Y
- * @precondition: we have zmp reference values for x and y, initContext com and integrator error
- *               for initialization.
- * @postcondition: now we have set comX, comY, eX, eY for everything in ref.
+/** @function: runZMPPreview()
+* @brief: run ZMP preview controller on entire reference and creates trajectory for COM pos/vel/acc in X and Y
+* @precondition: we have zmp reference values for x and y, initContext com and integrator error
+*               for initialization.
+* @postcondition: now we have set comX, comY, eX, eY for everything in ref.
+* @return: void
 */
 void ZMPWalkGenerator::runZMPPreview() {
 
@@ -115,8 +129,8 @@ void ZMPWalkGenerator::runZMPPreview() {
 
     // put all the zmp refs into eigen arrays in order to pass into the preview controller
     for(size_t i=0; i<ref.size(); i++) {
-        zmprefX(i) = ref.pX;
-        zmprefY(i) = ref.pY;
+        zmprefX(i) = ref[i].pX;
+        zmprefY(i) = ref[i].pY;
     }
 
     // generate COM position for each tick using zmp preview update
@@ -132,16 +146,21 @@ void ZMPWalkGenerator::runZMPPreview() {
     }
 }
 
-/* @function: runCOMIK()
- * @brief: this runs the COM IK on every dang thing in reference to fill in the kstate
- * @precondition: reference is fully filled in
- * @postcondition: kstate is fully filled in
+/**
+* @function: runCOMIK()
+* @brief: this runs the COM IK on every dang thing in reference to fill in the kstate
+* @precondition: reference is fully filled in
+* @postcondition: kstate is fully filled in
+* @return: void
 */
 void ZMPWalkGenerator::runCOMIK() {
+
+    std::vector<ZMPReferenceContext>* cur = &ref;
 
     Transform3Array xforms;
     const KinBody& kbody = hplus.kbody;
     HuboPlus::KState state;
+    const double& l6 = hplus.footAnkleDist;
 
     Transform3 desired[4];
     vec3 desiredCom;
@@ -153,15 +172,13 @@ void ZMPWalkGenerator::runCOMIK() {
         HuboPlus::IK_MODE_FIXED, // rarm
     };
 
-    TrajVector traj;
-    
-    for (std::vector<ZMPReferenceContext>::iterator cur = ref.begin(); cur != ref.end(); cur++) {
+    for (size_t t=0; t<ref.size(); t++) {
         // loop through stance and swing foot tables
-        int stance_foot = stance_foot_table[cur->stance];
-        int swing_foot = swing_foot_table[cur->stance];
+        int stance_foot = stance_foot_table[cur[i]->stance];
+        int swing_foot = swing_foot_table[cur[i]->stance];
 
-        vec3 stanceFtPos = cur->feet[stance_foot].translation();
-        vec3 swingFtPos = cur->feet[swing_foot].translation();
+        vec3 stanceFtPos = cur[i]->feet[stance_foot].translation();
+        vec3 swingFtPos = cur[i]->feet[swing_foot].translation();
         
         vec3 old[2];
         for (int f=0; f<2; ++f) { old[f] = desired[f].translation(); }
@@ -171,8 +188,8 @@ void ZMPWalkGenerator::runCOMIK() {
             mode[0] = HuboPlus::IK_MODE_SUPPORT;
             mode[1] = HuboPlus::IK_MODE_SUPPORT;
           
-            desired[0].setTranslation(cur->feet[0].translation()); // left foot x,y,z
-            desired[1].setTranslation(cur->feet[1].translation()); // right foot x,y,z
+            desired[0].setTranslation(cur[i]->feet[0].translation()); // left foot x,y,z
+            desired[1].setTranslation(cur[i]->feet[1].translation()); // right foot x,y,z
 
           // else if we're in swing mode
         } else {
@@ -180,31 +197,26 @@ void ZMPWalkGenerator::runCOMIK() {
             mode[swing_foot] = HuboPlus::IK_MODE_WORLD;
             mode[stance_foot] = HuboPlus::IK_MODE_SUPPORT;
             
-            const double sy[2] = { 1, -1 };
-
-            double z = swingFtPos(2); // create swing foot z-direction variable
-            
             // set stance foot desired position to (0, fixed-pos from center, 0)
             desired[stance_foot].setTranslation(stanceFtPos);
             
             // set swing foot desired position equal to location set above for tick #i
             desired[swing_foot].setTranslation(swingFtPos);
         }
-        
-        for (int f=0; i && f<2; ++f) {
+        // make sure change in foot position between two consecutive samples is less than limit 
+        for (int f=0; t && f<2; ++f) {
             assert( (old[f] - desired[f].translation()).norm() < 0.05 );
         }
         
         // set com desired position
         vec3 desiredComTmp(desiredCom);
-        desiredCom = vec3(cur->comX(0), cur->comY(0), com_height+l6);
+        desiredCom = vec3(cur[i]->comX(0), cur[i]->comY(0), com_height+l6);
 
         if ((desiredCom - desiredComTmp).norm() > .01 ) {
             assert( 0 && "Bad desiredCom" );
         }
 
         bool ikvalid[4];
-
 
         bool ok = hplus.comIK( state, desiredCom, desired, mode, 
             HuboPlus::noGlobalIK(), xforms, 
@@ -264,40 +276,52 @@ void ZMPWalkGenerator::runCOMIK() {
     }
 }
 
-/* @function: dumpTraj()
- * @brief: picks everything important out of ref which is now fully specified and creates a trajectory 
- * @precondition: we have ref fully filled in
- * @postcondition: forces and torque are calculated and everything is transformed into stance ankle reference frame
+/**
+* @function: dumpTraj()
+* @brief: picks everything important out of ref which is now fully specified and creates a trajectory 
+* @precondition: we have ref fully filled in
+* @postcondition: forces and torque are calculated and everything is transformed into stance ankle reference frame
+* @return: void
 */
 void ZMPWalkGenerator::dumpTraj() {
 
+    HuboPlus::IKMode mode[4] = { 
+      HuboPlus::IK_MODE_FIXED,
+      HuboPlus::IK_MODE_FIXED,
+      HuboPlus::IK_MODE_FIXED,
+      HuboPlus::IK_MODE_FIXED,
+    };
+
+    // loop through entire reference struct
     for (size_t i=0; i<ref.size(); i++) {
-        zmp_traj_element_t cur;
-        memset(&cur, 0, sizeof(cur));
+        zmp_traj_element_t cur; // new zmp_traj_element for each loop iteration
+        memset(&cur, 0, sizeof(cur)); // clear it
 
-        for (size_t hi=0; hi<hplus.huboJointOrder.size(); ++hi) {
-            size_t ji = hplus.huboJointOrder[hi];
-            if (ji != size_t(-1)) {
-                cur.angles[hi] = state.jvalues[ji];
+        // loop through joints for Hubo+ model
+        for (size_t hi=0; hi < hplus.huboJointOrder.size(); ++hi) {
+            size_t ji = hplus.huboJointOrder[hi]; // get corresponding joint number for real Hubo
+            if (ji != size_t(-1)) { // if it's a valid joint number
+                cur.angles[hi] = state.jvalues[ji]; // set its angle to whatever is in state
             }
-            cur.stance = stance[i];
+            cur.stance = ref[i].stance;
         }
-
+        // get transformation from stance foot to world origin
         Transform3 stanceInv = desired[stance_foot].inverse();
+        vec3 zmp(ref[i].pX, ref[i].pY, 0); // zmp vector for current tick
+        zmp = stanceInv * zmp; // zmp transformation in stance foot frame
 
-        vec3 zmp(zmprefX(i), zmprefY(i), 0);
-        zmp = stanceInv * zmp;
+        cur.zmp[0] = zmp[0]; // add zmp x to current trajectory tick
+        cur.zmp[1] = zmp[1]; // add zmp y to current trajectory tick
 
-        cur.zmp[0] = zmp[0];
-        cur.zmp[1] = zmp[1];
+        vec3 forces[2], torques[2]; // create forces and torque vectors for each ankle
 
-        vec3 forces[2], torques[2];
-
-        hplus.computeGroundReaction( vec3(comX(i,0), comY(i,0), com_height),
-                     vec3(comX(i,2), comY(i,2), 0),
+        // compute ground reaction forces and torques
+        hplus.computeGroundReaction( vec3(ref[i].comX(0), ref[i].comY(0), com_height),
+                     vec3(ref[i].comX(2), ref[i].comY(2), 0),
                      desired, mode,
                      forces, torques );
 
+        // for each ankle set current trajectory force and torque vectors
         for (int f=0; f<2; ++f) {
             for (int axis=0; axis<3; ++axis) {
                 cur.forces[f][axis] = forces[f][axis];
@@ -305,28 +329,23 @@ void ZMPWalkGenerator::dumpTraj() {
             }
         }
 
+        // get COM pos/vel/acc with respect to the stance foot frame
         for (int deriv=0; deriv<3; ++deriv) {
-            vec3 cv(comX(i,deriv), comY(i,deriv), deriv==0 ? com_height : 0);
-            if (deriv == 0) {
+            vec3 cv(ref[i].comX(deriv), ref[i].comY(deriv), deriv==0 ? com_height : 0);
+            if (deriv == 0) { // if it's position
                 cv = stanceInv * cv;
-            } else {
+            } else { // else if it's velocity or acceleration
                 cv = stanceInv.rotFwd() * cv;
             }
-            for (int axis=0; axis<3; ++axis) {
+            for (int axis=0; axis<3; ++axis) { // for each axis set new COM state w.r.t. stance foot
                 cur.com[axis][deriv] = cv[axis];
             }
         }
 
-        traj.push_back(cur);
-
-    // pick everything important out of ref which is now fully specified
-    // calculate desired forces and torques
-    // transform everything into stance ankle reference frame
-
-        
+        traj.push_back(cur); // add current trajectory tick to trajectory
 }
 
-void transforms101() {
+/*void transforms101() {
 
     Transform3 leftFoot;
 
@@ -353,4 +372,4 @@ void transforms101() {
     // ditto for translation
 
 
-}
+}*/
