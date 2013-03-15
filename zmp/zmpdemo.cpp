@@ -497,7 +497,8 @@ int main(int argc, char** argv) {
                           double_support_time,
                           startup_time,
                           shutdown_time,
-                          fz
+                          fz,
+			  lookahead_time
     );
   ZMPReferenceContext initContext;
 

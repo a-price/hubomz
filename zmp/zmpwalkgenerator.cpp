@@ -12,7 +12,8 @@ ZMPWalkGenerator::ZMPWalkGenerator(HuboPlus& _hplus,
                                    double min_double_support_time,
                                    double walk_startup_time,
                                    double walk_shutdown_time,
-                                   double step_height) :
+                                   double step_height,
+				   double lookahead_time) :
     hplus(_hplus),
     com_height(com_height),
     zmp_R(zmp_R),
@@ -22,6 +23,7 @@ ZMPWalkGenerator::ZMPWalkGenerator(HuboPlus& _hplus,
     walk_startup_time(walk_startup_time),
     walk_shutdown_time(walk_shutdown_time),
     step_height(step_height),
+    lookahead_time(lookahead_time),
     haveInitContext(false)
 {
 }
@@ -61,9 +63,12 @@ void ZMPWalkGenerator::stayDogStay(size_t stay_ticks) {
 
   stance_t double_stance = DOUBLE_LEFT;
 
-  for (size_t i=0; i<stay_ticks; ++i) {
+  size_t shift_ticks = TRAJ_FREQ_HZ * min_double_support_time;
+  if (shift_ticks > stay_ticks) { shift_ticks = stay_ticks; }
 
-    double u = double(i) / double(stay_ticks - 1);
+  for (size_t i=0; i<shift_ticks; ++i) {
+
+    double u = double(i) / double(shift_ticks - 1);
     double c = sigmoid(u);
     
     cur.stance = double_stance;
@@ -75,6 +80,10 @@ void ZMPWalkGenerator::stayDogStay(size_t stay_ticks) {
     
     ref.push_back(cur);
     
+  }
+
+  for (size_t i=shift_ticks; i<stay_ticks; ++i) {
+    ref.push_back(cur);
   }
 
 }
@@ -122,8 +131,11 @@ void ZMPWalkGenerator::addFootstep(const Footprint& fp) {
     double dist_theta = atan2(rotation_intermediate.y(), rotation_intermediate.x()); // hooray for bad code!
     
     // figure out how long we spend in each stage
-    size_t double_ticks = timer.compute_double(dist, dist_theta, step_height);
-    size_t single_ticks = timer.compute_single(dist, dist_theta, step_height);
+    //size_t double_ticks = timer.compute_double(dist, dist_theta, step_height);
+    //size_t single_ticks = timer.compute_single(dist, dist_theta, step_height);
+
+    size_t double_ticks = TRAJ_FREQ_HZ * min_double_support_time;
+    size_t single_ticks = TRAJ_FREQ_HZ * min_single_support_time;
     
     for (size_t i = 0; i < double_ticks; i++) {
         // sigmoidally interopolate things like desired ZMP and body
@@ -223,13 +235,12 @@ void ZMPWalkGenerator::runZMPPreview() {
     Eigen::ArrayXd zmprefY(ref.size());
 
     // initialize the zmp preview controller
-    ZmpPreview preview(1.0/TRAJ_FREQ_HZ, com_height, ref.size(), zmp_R);
+    ZmpPreview preview(1.0/TRAJ_FREQ_HZ, com_height, lookahead_time*TRAJ_FREQ_HZ, zmp_R);
 
     // put all the zmp refs into eigen arrays in order to pass into the preview controller
     for(size_t i=0; i<ref.size(); i++) {
         zmprefX(i) = ref[i].pX;
         zmprefY(i) = ref[i].pY;
-	std::cerr << "zmpref(" << i << ") = " << ref[i].pX << ", " << ref[i].pY << "\n";
     }
 
     // generate COM position for each tick using zmp preview update
@@ -347,7 +358,7 @@ void ZMPWalkGenerator::applyComIK(ZMPReferenceContext& cur) {
 	std::cerr << "\n";
       }
     }
-    //exit(1);
+    exit(1);
   } // finish freaking out
 
   // and we're done!

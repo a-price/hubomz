@@ -38,7 +38,8 @@ public:
                      double min_double_support_time,
                      double walk_startup_time,
                      double walk_shutdown_time,
-                     double step_height
+                     double step_height,
+		     double lookahead_time
         );
     
     const HuboPlus& hplus;
@@ -50,6 +51,7 @@ public:
     double walk_startup_time;
     double walk_shutdown_time;
     double step_height;
+    double lookahead_time;
     // tons of constants
 
     size_t first_step_index;
