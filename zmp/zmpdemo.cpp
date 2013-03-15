@@ -411,8 +411,6 @@ int main(int argc, char** argv) {
 
   double zmp_R = 1e-8; // jerk penalty on ZMP controller
 
-  size_t n_steps = 8; // how many steps?
-
   const struct option long_options[] = {
     { "show-gui",            no_argument,       0, 'g' },
     { "use-ach",             no_argument,       0, 'A' },
@@ -461,10 +459,8 @@ int main(int argc, char** argv) {
     }
   }
 
-  size_t num_lookahead = seconds_to_ticks(lookahead_time); // lookahead window size
 
   const char* hubofile = 0;
-
   while (optind < argc) {
     if (!hubofile) {
       hubofile = argv[optind++];
@@ -474,16 +470,105 @@ int main(int argc, char** argv) {
       exit(1);
     }
   }
-
   HuboPlus hplus(hubofile);
 
-  const double& l6 = hplus.footAnkleDist;
 
-  double zmp_dt = 1.0/TRAJ_FREQ_HZ; // delta t for ZMP preview controller
   
   TimeStamp t0 = TimeStamp::now();
 
-  ZmpPreview preview(zmp_dt, com_height, num_lookahead, zmp_R);
+
+  // const double& l6 = hplus.footAnkleDist;
+
+  // double zmp_dt = 1.0/TRAJ_FREQ_HZ; // delta t for ZMP preview controller
+  // size_t num_lookahead = seconds_to_ticks(lookahead_time); // lookahead window size
+  // ZmpPreview preview(zmp_dt, com_height, num_lookahead, zmp_R);
+
+
+  //////////////////////////////////////////////////////////////////////
+  // build initial state
+
+  // the actual state
+  ZMPWalkGenerator walker;
+  ZMPReferenceContext initContext;
+
+  // helper variables and classes
+  Transform3Array xforms;
+  const KinBody& kbody = hplus.kbody;
+  const JointLookup& jl = hplus.jl;
+  real deg = M_PI/180; // for converting from degrees to radians
+
+  // fill in the kstate
+  initContext.kstate.body_pos = vec3(0, 0, 0.85);
+  initContext.kstate.body_rot = quat();
+  initContext.kstate.jvalues.resize(kbody.joints.size(), 0.0);
+  initContext.kstate.jvalues[jl("LSR")] =  15*deg;
+  initContext.kstate.jvalues[jl("RSR")] = -15*deg;
+  initContext.kstate.jvalues[jl("LSP")] =  20*deg;
+  initContext.kstate.jvalues[jl("RSP")] =  20*deg;
+  initContext.kstate.jvalues[jl("LEP")] = -40*deg;
+  initContext.kstate.jvalues[jl("REP")] = -40*deg;
+  kbody.transforms(initContext.kstate.jvalues, xforms);
+  
+  // build and fill in the initial foot positions
+  initContext.foot[0] = Transform3(quat(), vec3(0, fy, 0));
+  initContext.foot[1] = Transform3(quat(), vec3(0, -fy, 0));
+
+  // fill in the rest
+  vec3 betweenFeet = (initContext.foot[0] * vec3() + initContext.foot[1] * vec3()) / 2.0;
+  initContext.stance = DOUBLE_LEFT;
+  initContext.comX = Eigen::Vector3d(betweenFeet.x(), 0.0, 0.0);
+  initContext.comY = Eigen::Vector3d(betweenFeet.y(), 0.0, 0.0);
+  initContext.eX = 0.0;
+  initContext.eY = 0.0;
+  initContext.pX = betweenFeet.x();
+  initContext.pY = betweenFeet.y();
+  
+  walker.initialize(initContext);
+
+  
+  //////////////////////////////////////////////////////////////////////
+  // build ourselves some footprints
+  
+  Transform3 initLeftTransform = initContext.foot[0];
+  Transform3 initRightTransform = initContext.foot[1];
+  vec3 initLeftPosition = initLeftTransform * vec3();
+  vec3 initRightPosition = initRightTransform * vec3();
+  
+  Footprint initLeftFoot = Footprint(initLeftPosition.x(),
+                                     initLeftPosition.y(),
+                                     0.0, // FIXME: actually pull rotation out of initContext
+                                     true);
+  Footprint initRightFoot = Footprint(initRightPosition.x(),
+                                      initRightPosition.y(),
+                                      0.0, // FIXME: actually pull rotation out of initContext
+                                      false);
+  
+  std::vector<Footprint> footprints = walkCircle(circle_radius,
+                                                 circle_distance,
+                                                 circle_max_step_length,
+                                                 circle_max_step_angle,
+                                                 &initLeftFoot,
+                                                 &initRightFoot,
+                                                 DOUBLE_LEFT);
+
+  
+
+  //////////////////////////////////////////////////////////////////////
+  // and then build up the walker
+
+  walker.stayDogStay(startup_time * TRAJ_FREQ_HZ);
+  for(auto it = footprints.begin(); it != footprints.end(); it++) {
+    walker.addFootstep(*it);
+  }
+  walker.stayDogStay(shutdown_time * TRAJ_FREQ_HZ);
+
+  //////////////////////////////////////////////////////////////////////
+  // have the walker run preview control and pass on the output
+
+
+  // validateOutputData(traj);
+
+
 
   //////////////////////////////////////////////////////////////////////
   // fill up buffers with zmp reference and foot info
