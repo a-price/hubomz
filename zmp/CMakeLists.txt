@@ -1,5 +1,6 @@
 add_executable(zmpdemo zmpdemo.cpp zmpwalkgenerator.cpp)
 add_executable(swingtest swing-test.cpp swing.cpp)
+add_executable(footprintdemo footprint-example.cpp footprint.cpp)
 
 
 set(zmpdemo_libs hubomz mzcommon ${OPENGL_LIBRARY} ${GLUT_LIBRARY} expat)
