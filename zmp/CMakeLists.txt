@@ -1,4 +1,4 @@
-add_executable(zmpdemo zmpdemo.cpp zmpwalkgenerator.cpp)
+add_executable(zmpdemo zmpdemo.cpp zmpwalkgenerator.cpp footprint.cpp)
 add_executable(swingtest swing-test.cpp swing.cpp)
 add_executable(footprintdemo footprint-example.cpp footprint.cpp)
 
@@ -13,5 +13,5 @@ endif()
 target_link_libraries(zmpdemo ${zmpdemo_libs})
 
 
-add_executable(gaittest gait-test.cpp gait.cpp)
+add_executable(gait-timer-test gait-timer-test.cpp gait-timer.cpp)
 target_link_libraries(zmpdemo hubomz mzcommon ${OPENGL_LIBRARY} ${GLUT_LIBRARY} expat ach)
