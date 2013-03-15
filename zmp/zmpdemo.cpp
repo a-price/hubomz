@@ -124,8 +124,8 @@ public:
       actualComVel[a] = cur.com[a][1];
       actualComAcc[a] = cur.com[a][2];
       for (int f=0; f<2; ++f) {
-	forces[f][a] = cur.forces[f][a];
-	torques[f][a] = cur.torque[f][a]; // TODO: FIXME: pluralization WTF?
+	forces[1-f][a] = cur.forces[f][a];
+	torques[1-f][a] = cur.torque[f][a]; // TODO: FIXME: pluralization WTF?
       }
     }
 
@@ -567,8 +567,8 @@ int main(int argc, char** argv) {
 
   std::vector<Footprint> footprints;
 
-  for (size_t i=0; i<1; ++i) {
-    bool is_left = true;
+  for (size_t i=0; i<8; ++i) {
+    bool is_left = i%2;
     footprints.push_back(Footprint(0, is_left ? fy : -fy, 0, is_left));
   }
 

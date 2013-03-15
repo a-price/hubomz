@@ -103,11 +103,6 @@ void ZMPWalkGenerator::addFootstep(const Footprint& fp) {
     int swing_foot = fp.is_left ? 0 : 1;
     int stance_foot = 1-swing_foot;
 
-    assert(swing_foot == 0);
-    assert(stance_foot == 1);
-    assert(double_stance == DOUBLE_RIGHT);
-    assert(single_stance == SINGLE_RIGHT);
-
     // figure out where our body is going to end up if we put our foot there
     quat body_rot_end = quat::slerp(start_context.feet[swing_foot].rotation(),
                                     fp.transform.rotation(),
@@ -290,15 +285,6 @@ void ZMPWalkGenerator::applyComIK(ZMPReferenceContext& cur) {
   cur.ikMode[HuboPlus::MANIP_R_HAND] = HuboPlus::IK_MODE_FIXED;
 
   // only moving left foot in current code
-  assert(cur.stance != SINGLE_LEFT);
-  if (cur.stance == SINGLE_RIGHT) {
-    std::cout << "ik mode for left foot is " << cur.ikMode[0] << "\n";
-    assert(cur.ikMode[0] == HuboPlus::IK_MODE_WORLD);
-  } else {
-    assert(cur.ikMode[0] == HuboPlus::IK_MODE_SUPPORT);
-  }
-
-  cur.ikMode[1] = HuboPlus::IK_MODE_SUPPORT;
         
   // set up ikvalid
   bool ikvalid[4];
