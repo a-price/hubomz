@@ -39,6 +39,8 @@ public:
   vec3 forces[2];
   vec3 torques[2];
   vec3 actualCom;
+  vec3 actualComVel;
+  vec3 actualComAcc;
 
   Transform3Array xforms;
 
@@ -120,6 +122,8 @@ public:
     
     for (int a=0; a<3; ++a) {
       actualCom[a] = cur.com[a][0];
+      actualComVel[a] = cur.com[a][1];
+      actualComAcc[a] = cur.com[a][2];
       for (int f=0; f<2; ++f) {
 	forces[f][a] = cur.forces[f][a];
 	torques[f][a] = cur.torque[f][a]; // TODO: FIXME: pluralization WTF?
@@ -187,6 +191,7 @@ public:
 
     hplus.kbody.renderSkeleton(xforms, quadric);
 
+    // Force and torque arrows
     for (int f=0; f<2; ++f) {
       Transform3 fk = hplus.kbody.manipulatorFK(xforms, f);
       glPushMatrix();
@@ -207,12 +212,14 @@ public:
     glPushMatrix();
     glstuff::mult_transform(stance_foot_xform);
 
+    // CoM sphere
     glColor3ub(255, 0, 255);
     glPushMatrix();
     glTranslated(actualCom[0], actualCom[1], actualCom[2]+hplus.footAnkleDist);
     gluSphere(quadric, 0.05, 32, 24);
     glPopMatrix();
 
+    // CoM projection disk
     glPushMatrix();
     glTranslated(actualCom[0], actualCom[1], 0.01);
     glColor3ub(127, 0, 127);
@@ -221,6 +228,15 @@ public:
     gluDisk(quadric, 0, 0.05, 32, 1);
     glPopMatrix();
 
+    // Acceleration arrow
+    real fscl = 1.0/2.0;
+    glPushMatrix();
+    glTranslated(actualCom[0], actualCom[1], actualCom[2]+hplus.footAnkleDist);
+    glColor3ub(0, 255, 0);
+    glstuff::draw_arrow(quadric, vec3(0), fscl*actualComAcc, 0.02);
+    glPopMatrix();
+    
+    
     glPopMatrix();
 
     glutSwapBuffers();
@@ -316,7 +332,7 @@ void validateOutputData(TrajVector& traj) {
     double maxJointVel=0;
     double jointVel;
     const double jointVelTol = 6.0; // radians/s
-    for (int n=0; n<(traj.size()-1); n++) {
+    for (int n=0; n<(int)(traj.size()-1); n++) {
       for (int j=0; j<HUBO_JOINT_COUNT; j++) {  
         jointVel = (traj[n+1].angles[j] - traj[n].angles[j])/dt;
         if (jointVel > jointVelTol) {
@@ -470,6 +486,7 @@ int main(int argc, char** argv) {
       exit(1);
     }
   }
+  if (!hubofile) { usage(std::cerr); exit(1); }
   HuboPlus hplus(hubofile);
 
 

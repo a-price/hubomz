@@ -11,6 +11,10 @@ bool is_even(int i) {
   return (i%2) == 0;
 }
 
+bool is_odd(int i) {
+  return !is_even(i);
+}
+
 vector<Footprint> walkLine(double dist, double width, double max_step_length) {
   // Solve simple equation
   const int K = int(ceil(dist/max_step_length) + 1e-10);
@@ -36,10 +40,17 @@ vector<Footprint> walkCircle(double radius,
                              double max_step_angle,
                              Footprint* init_left,
                              Footprint* init_right,
-                             stance_t stance_handedness) {
+                             bool left_is_stance_foot) {
+    assert(distance > 0);
+    assert(width > 0);
+    assert(max_step_length > 0);
+    assert(max_step_angle >= -3.14159265359);
+    assert(max_step_angle < 3.14159265359);
+    assert((left_is_stance_foot ? init_left : init_right)
+          && "The stance foot must not be null");
+
     // select stance foot, fill out transforms
     Footprint* stance_foot;
-    bool left_is_stance_foot = stance_handedness == SINGLE_LEFT || stance_handedness == DOUBLE_LEFT;
     if (left_is_stance_foot) stance_foot = init_left;
     else stance_foot = init_right;
     Eigen::Transform<double,2,Eigen::Affine> T_stance_to_world;
@@ -48,13 +59,21 @@ vector<Footprint> walkCircle(double radius,
         * Eigen::Rotation2D<double>(stance_foot->theta)
         * Eigen::Translation<double, 2>(0, left_is_stance_foot?-width:width);
 
-    // minimize K subject to conditions, compute resulting dTheta
-    int K = ceil(distance / max_step_angle * abs((radius - width) / radius));
-    double dTheta = distance / (K * radius);
-    if (abs(dTheta) > max_step_angle) {
-        K = ceil(distance / abs(radius) * max_step_angle);
-        dTheta = distance / (K * radius);
-    }
+    double alpha = distance / abs(radius);
+    double outer_dist = (abs(radius) + width) * alpha;
+    int K_step_length = ceil(outer_dist / max_step_length);
+    int K_angle = ceil(alpha / max_step_angle);
+    int K = max(K_step_length, K_angle);
+    double dTheta = alpha/K * radius/(abs(radius));
+
+#ifdef DEBUG
+    cout << "outer_dist IS " << outer_dist << endl;
+    cout << outer_dist / max_step_length << endl;
+    cout << "Ksl IS " << K_step_length << endl;
+    cout << "Kang IS " << K_angle << endl;
+    cout << "K IS " << K << endl;
+    cout << "dTheta IS " << dTheta << endl;
+#endif
 
     // init results list
     vector<Footprint> result;
@@ -98,7 +117,6 @@ vector<Footprint> walkCircle(double radius,
                                    theta_last,
                                    false));
     }
-    result.insert(result.begin(), Footprint(*stance_foot));
 
     // run through results transforming them back into the original frame of reference
     for(std::vector<Footprint>::iterator it = result.begin(); it < result.end(); it++) {
@@ -108,13 +126,14 @@ vector<Footprint> walkCircle(double radius,
         it->y = t.y();
         it->theta = it->theta + stance_foot->theta;
     }
+    result.insert(result.begin(), Footprint(*stance_foot));
 
     // return the result
     return result;
 }
 
 
-int main() {
+int example_main() {
     double radius = 1;
     double distance = 2;
     double width = .2;
@@ -123,7 +142,7 @@ int main() {
 
     Footprint* foot_l = new Footprint(0, width, 0, true);
     Footprint* foot_r = new Footprint(0, -width, 0, false);
-    stance_t stance_handedness = SINGLE_LEFT;        // start on right foot
+    bool stance_is_left = true;        // start on right foot
     std::vector<Footprint> footprints;
 
     footprints = walkCircle(radius,
@@ -133,13 +152,8 @@ int main() {
                             max_angle,
                             foot_l,
                             foot_r,
-<<<<<<< HEAD
-                            stance_handedness);
-    
-=======
                             stance_is_left);
 
->>>>>>> bf94aef501f702ad1df169b1017a56d12b183bfe
     for(std::vector<Footprint>::iterator it = footprints.begin(); it < footprints.end(); it++) {
         // std::cout << "[" << it->x << ", " << it->y << " @ " << it->theta << "]" << std::endl;
         std::cout
