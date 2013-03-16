@@ -357,7 +357,7 @@ void usage(std::ostream& ostr) {
     "  -D, --walk-distance               Set maximum distance to walk\n"
     "  -r, --walk-circle-radius          Set radius for circle walking\n"
     "  -c, --max-step-count=NUMBER       Set maximum number of steps\n"
-    "  -f, --foot-separation-y=NUMBER    Half-distance between feet\n"
+    "  -y, --foot-separation-y=NUMBER    Half-distance between feet\n"
     "  -z, --foot-liftoff-z=NUMBER       Vertical liftoff distance of swing foot\n"
     "  -l, --step-length=NUMBER          Max length of footstep\n"
     "  -h, --com-height=NUMBER           Height of the center of mass\n"
@@ -687,7 +687,6 @@ int main(int argc, char** argv) {
 
   walker.bakeIt();
   // validateOutputData(traj);
-
 
 #ifdef HAVE_HUBO_ACH
 
