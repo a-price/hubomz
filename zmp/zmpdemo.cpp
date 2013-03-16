@@ -557,8 +557,10 @@ int main(int argc, char** argv) {
   initContext.state.jvalues[jl("REP")] = -40*deg;
   
   // build and fill in the initial foot positions
-  initContext.feet[0] = Transform3(vec3(0, footsep_y, 0));
-  initContext.feet[1] = Transform3(vec3(0, -footsep_y, 0));
+
+  Transform3 starting_location(quat::fromAxisAngle(vec3(0,0,1), 0));
+  initContext.feet[0] = Transform3(starting_location.rotation(), starting_location * vec3(0, footsep_y, 0));
+  initContext.feet[1] = Transform3(starting_location.rotation(), starting_location * vec3(0, -footsep_y, 0));
 
   // fill in the rest
   initContext.stance = DOUBLE_LEFT;
@@ -584,7 +586,6 @@ int main(int argc, char** argv) {
   //////////////////////////////////////////////////////////////////////
   // build ourselves some footprints
   
-
   Footprint initLeftFoot = Footprint(initContext.feet[0], true);
   Footprint initRightFoot = Footprint(initContext.feet[1], false);
 
@@ -593,7 +594,7 @@ int main(int argc, char** argv) {
   switch (walk_type) {
   case walk_circle: {
 
-    double circle_max_step_angle = M_PI / 12.0; // maximum angle between steps
+    double circle_max_step_angle = M_PI / 12.0; // maximum angle between steps TODO: FIXME: add to cmd line??
   
     footprints = walkCircle(walk_circle_radius,
 			    walk_dist,
