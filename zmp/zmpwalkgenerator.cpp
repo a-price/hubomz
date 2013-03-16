@@ -10,7 +10,7 @@ ZMPWalkGenerator::ZMPWalkGenerator(HuboPlus& _hplus,
                                    double zmp_R,
 				   double zmpoff_x,
 				   double zmpoff_y,
-                                   double com_ik_ankle_weight,
+                                   double com_ik_angle_weight,
                                    double min_single_support_time,
                                    double min_double_support_time,
                                    double walk_startup_time,
@@ -23,7 +23,7 @@ ZMPWalkGenerator::ZMPWalkGenerator(HuboPlus& _hplus,
     zmp_R(zmp_R),
     zmpoff_x(zmpoff_x),
     zmpoff_y(zmpoff_y),
-    com_ik_ankle_weight(com_ik_ankle_weight),
+    com_ik_angle_weight(com_ik_angle_weight),
     min_single_support_time(min_single_support_time),
     min_double_support_time(min_double_support_time),
     walk_startup_time(walk_startup_time),
@@ -124,6 +124,7 @@ void ZMPWalkGenerator::addFootstep(const Footprint& fp) {
     // figure out the stances for this movement
     stance_t double_stance = fp.is_left ? DOUBLE_RIGHT : DOUBLE_LEFT;
     stance_t single_stance = fp.is_left ? SINGLE_RIGHT : SINGLE_LEFT;
+    if (step_height == 0) { single_stance = double_stance; }
 
     // figure out swing foot and stance foot for accessing
     int swing_foot = fp.is_left ? 0 : 1;

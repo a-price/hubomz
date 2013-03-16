@@ -45,7 +45,7 @@ public:
                      double zmp_R,
 		     double zmpoff_x,
 		     double zmpoff_y,
-                     double com_ik_ankle_weight,
+                     double com_ik_angle_weight,
                      double min_single_support_time,
                      double min_double_support_time,
                      double walk_startup_time,
@@ -61,7 +61,7 @@ public:
     double zmp_R; // jerk penalty on ZMP controller
     double zmpoff_x;
     double zmpoff_y;
-    double com_ik_ankle_weight;
+    double com_ik_angle_weight;
     double min_single_support_time;
     double min_double_support_time;
     double walk_startup_time;
