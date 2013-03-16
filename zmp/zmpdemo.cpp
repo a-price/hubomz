@@ -352,6 +352,7 @@ void usage(std::ostream& ostr) {
     "\n"
     "  -g, --show-gui                    Show a GUI after computing trajectories.\n"
     "  -A, --use-ach                     Send trajectory via ACH after computing.\n"
+    "  -I, --ik-errors                   IK error handling: strict/sloppy\n"
     "  -w, --walk-type                   Set type: canned/line/circle\n"
     "  -D, --walk-distance               Set maximum distance to walk\n"
     "  -r, --walk-circle-radius          Set radius for circle walking\n"
@@ -415,6 +416,18 @@ walktype getwalktype(const std::string& s) {
   }
 }
 
+ZMPWalkGenerator::ik_error_sensitivity getiksense(const std::string& s) {
+  if (s == "strict") {
+    return ZMPWalkGenerator::ik_strict;
+  } else if (s == "sloppy") {
+    return ZMPWalkGenerator::ik_sloppy;
+  } else {
+    std::cerr << "bad ik error sensitivity " << s << "\n";
+    usage(std::cerr);
+    exit(1);
+  }
+}
+
 int main(int argc, char** argv) {
 
   if (argc < 2) {
@@ -452,9 +465,12 @@ int main(int argc, char** argv) {
 
   double zmp_jerk_penalty = 1e-8; // jerk penalty on ZMP controller
 
+  ZMPWalkGenerator::ik_error_sensitivity ik_sense = ZMPWalkGenerator::ik_strict;
+
   const struct option long_options[] = {
     { "show-gui",            no_argument,       0, 'g' },
     { "use-ach",             no_argument,       0, 'A' },
+    { "ik-errors",           required_argument, 0, 'I' },
     { "walk-type",           required_argument, 0, 'w' },
     { "walk-distance",       required_argument, 0, 'D' },
     { "walk-circle-radius",  required_argument, 0, 'r' },
@@ -476,14 +492,16 @@ int main(int argc, char** argv) {
     { 0,                     0,                 0,  0  },
   };
 
-  const char* short_options = "gAw:D:r:c:y:z:l:h:a:Y:X:T:p:n:d:s:R:H";
+  const char* short_options = "gAI:w:D:r:c:y:z:l:h:a:Y:X:T:p:n:d:s:R:H";
 
   int opt, option_index;
+
 
   while ( (opt = getopt_long(argc, argv, short_options, long_options, &option_index)) != -1 ) {
     switch (opt) {
     case 'g': show_gui = true; break;
     case 'A': use_ach = true; break;
+    case 'I': ik_sense = getiksense(optarg); break;
     case 'w': walk_type = getwalktype(optarg); break;
     case 'D': walk_dist = getdouble(optarg); break;
     case 'r': walk_circle_radius = getdouble(optarg); break;
@@ -517,7 +535,12 @@ int main(int argc, char** argv) {
       exit(1);
     }
   }
-  if (!hubofile) { usage(std::cerr); exit(1); }
+  if (!hubofile) { 
+    std::cerr << "Please supply a huboplus file!\n\n";
+    usage(std::cerr); 
+    exit(1); 
+  }
+
   HuboPlus hplus(hubofile);
 
 
@@ -526,6 +549,7 @@ int main(int argc, char** argv) {
 
   // the actual state
   ZMPWalkGenerator walker(hplus,
+			  ik_sense,
                           com_height,
                           zmp_jerk_penalty,
 			  zmpoff_x,

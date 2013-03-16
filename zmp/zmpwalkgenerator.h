@@ -30,7 +30,17 @@ public:
 class ZMPWalkGenerator {
 public:
     
+  // TODO: shove these into struct
+  
+  enum ik_error_sensitivity {
+    ik_strict, // default
+    // TODO: ik_swing_permissive - allows ik errors on swing foot when above 0.5 * step_height
+    ik_sloppy, // never ever ever ever run this on the robot
+    
+  };
+
     ZMPWalkGenerator(HuboPlus& _hplus,
+		     ik_error_sensitivity ik_sense,
                      double com_height,
                      double zmp_R,
 		     double zmpoff_x,
@@ -45,6 +55,8 @@ public:
         );
     
     const HuboPlus& hplus;
+
+    ik_error_sensitivity ik_sense;
     double com_height;
     double zmp_R; // jerk penalty on ZMP controller
     double zmpoff_x;

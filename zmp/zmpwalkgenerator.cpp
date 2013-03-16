@@ -5,6 +5,7 @@
 #include "swing.h"
 
 ZMPWalkGenerator::ZMPWalkGenerator(HuboPlus& _hplus,
+				   ik_error_sensitivity ik_sense,
                                    double com_height,
                                    double zmp_R,
 				   double zmpoff_x,
@@ -17,6 +18,7 @@ ZMPWalkGenerator::ZMPWalkGenerator(HuboPlus& _hplus,
                                    double step_height,
 				   double lookahead_time) :
     hplus(_hplus),
+    ik_sense(ik_sense),
     com_height(com_height),
     zmp_R(zmp_R),
     zmpoff_x(zmpoff_x),
@@ -371,9 +373,7 @@ void ZMPWalkGenerator::applyComIK(ZMPReferenceContext& cur) {
 			ikvalid);
 
   // TODO freak out if not ok
-  if (0 && !ok) {
-
-
+  if (ik_sense != ik_sloppy && !ok) {
 
     hplus.kbody.transforms(initContext.state.jvalues, body_transforms);
     Transform3 actual[4];
