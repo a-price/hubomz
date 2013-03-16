@@ -305,12 +305,13 @@ void ZMPWalkGenerator::runZMPPreview() {
         zmprefY(i) = ref[i].pY;
     }
 
+
     // generate COM position for each tick using zmp preview update
     for(size_t i = 0; i < ref.size(); i++) {
         ZMPReferenceContext& cur = ref[i];
         // run zmp preview controller to update COM states and integrator error
-        preview.update(comX, eX, zmprefX);
-        preview.update(comY, eY, zmprefY);
+        preview.update(comX, eX, zmprefX.block(i, 0, ref.size()-i, 1));
+	preview.update(comY, eY, zmprefY.block(i, 0, ref.size()-i, 1));
         cur.comX = comX; // set the ref comX pos/vel/acc for this tick
         cur.comY = comY; // set the ref comY pos/vel/acc for this tick
         cur.eX = eX;                 // set the X error for this tick
@@ -476,11 +477,6 @@ void ZMPWalkGenerator::refToTraj(const ZMPReferenceContext& cur_ref,
     cur_out.torque[1][axis] = torques[0][axis]; // right foot torques
   }
 
-  std::cout << "left  foot forces: " << forces[0] << "\n";
-  std::cout << "right foot forces: " << forces[1] << "\n";
-
-  std::cout << "left  foot torques: " << torques[0] << "\n";
-  std::cout << "right foot torques: " << torques[1] << "\n";
 
   // transform zmp and com into stance ankle reference frame, copy into output
   Transform3 stance_foot_trans = cur_ref.stance == SINGLE_LEFT || cur_ref.stance == DOUBLE_LEFT
