@@ -410,7 +410,7 @@ int main(int argc, char** argv) {
   double zmpy = 0; // lateral displacement between zmp and ankle
   double zmpx = 0;
   double fz = 0.05; // foot liftoff height
-
+  double step_length = 0.05;
 
   double lookahead_time = 2.5;
   double startup_time = 1.0;
@@ -453,7 +453,7 @@ int main(int argc, char** argv) {
     case 'A': use_ach = true; break;
     case 'f': fy = getdouble(optarg); break;
     case 'L': fz = getdouble(optarg); break;
-    // case 'x': fy = getdouble(optarg); break; // FIXME: rebuild the options to support circle trajectory args
+    case 'x': step_length = getdouble(optarg); break; // FIXME: rebuild the options to support circle trajectory args
     case 'Y': zmpy = getdouble(optarg); break;
     case 'X': zmpx = getdouble(optarg); break;
     case 'h': com_height = getdouble(optarg); break;
@@ -546,14 +546,15 @@ int main(int argc, char** argv) {
   //////////////////////////////////////////////////////////////////////
   // build ourselves some footprints
   
-  /*
+#if 1
+
   Footprint initLeftFoot = Footprint(initContext.feet[0], true);
   Footprint initRightFoot = Footprint(initContext.feet[1], false);
 
   double circle_max_step_length = 0.2; // maximum distance between steps
   double circle_max_step_angle = M_PI / 12.0; // maximum angle between steps
-  double circle_distance = 5.0; // distance to go along circle
-  double circle_radius = 2.0; // radius of circle to move in
+  double circle_distance = 1.0; // distance to go along circle
+  double circle_radius = 1.0; // radius of circle to move in
   
   std::vector<Footprint> footprints = walkCircle(circle_radius,
                                                  circle_distance,
@@ -564,7 +565,8 @@ int main(int argc, char** argv) {
                                                  &initRightFoot,
                                                  DOUBLE_LEFT);
 
-  */
+
+#else
 
   std::vector<Footprint> footprints;
   double cur_x[2] = { 0, 0 };
@@ -573,10 +575,11 @@ int main(int argc, char** argv) {
     bool is_left = i%2;
     int swing = is_left ? 0 : 1;
     int stance = 1-swing;
-    cur_x[swing] = cur_x[stance] + 0.05;
+    cur_x[swing] = cur_x[stance] + 2*step_length;
     footprints.push_back(Footprint(cur_x[swing], is_left ? fy : -fy, 0, is_left));
   }
 
+#endif
   
 
   //////////////////////////////////////////////////////////////////////

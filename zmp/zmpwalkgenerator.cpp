@@ -93,6 +93,7 @@ double ZMPWalkGenerator::sigmoid(double x) {
     return 3*x*x - 2*x*x*x;
 }
 
+
 void ZMPWalkGenerator::addFootstep(const Footprint& fp) {
     // initialize our timer
     GaitTimer timer;
@@ -150,6 +151,9 @@ void ZMPWalkGenerator::addFootstep(const Footprint& fp) {
         // split-second we're in double support.
         double u = double(i) / double(double_ticks - 1);
         double c = sigmoid(u);
+
+	double uu = double(i) / double(double_ticks + single_ticks - 1);
+	double cc = sigmoid(uu);
         
         ZMPReferenceContext cur_context;
         cur_context.stance = double_stance;
@@ -164,8 +168,9 @@ void ZMPWalkGenerator::addFootstep(const Footprint& fp) {
         cur_context.state = start_context.state;
         cur_context.state.jvalues = fakerave::RealArray(start_context.state.jvalues);
         cur_context.state.body_rot = quat::slerp(start_context.state.body_rot, 
-                                                 body_rot_end,
-                                                 c);
+                                                 body_rot_end, cc);
+
+
 
         ref.push_back(cur_context);
     }
@@ -173,6 +178,7 @@ void ZMPWalkGenerator::addFootstep(const Footprint& fp) {
     double swing_foot_traj[single_ticks][3];
     double swing_foot_angle[single_ticks];
 
+    // note: i'm not using the swing_foot_angle stuff cause it seemed to not work
     swing2Cycloids(start_context.feet[swing_foot].translation().x(),
                    start_context.feet[swing_foot].translation().y(),
                    start_context.feet[swing_foot].translation().z(),
@@ -185,16 +191,53 @@ void ZMPWalkGenerator::addFootstep(const Footprint& fp) {
                    swing_foot_traj,
                    swing_foot_angle);
 
+    
+    quat foot_start_rot = start_context.feet[swing_foot].rotation();
+    quat foot_end_rot = fp.transform.rotation();
+
+    // we want to have a small deadband at the front and end when we rotate the foot around
+    // so it has no rotational velocity during takeoff and landing
+    size_t rot_dead_ticks = 0.1 * TRAJ_FREQ_HZ; 
+
+    if (single_ticks < 4*rot_dead_ticks) {
+      rot_dead_ticks = single_ticks / 4;
+    }
+    
+    assert(single_ticks > rot_dead_ticks * 2);
+
+    size_t central_ticks = single_ticks - 2*rot_dead_ticks;
 
     for (size_t i = 0; i < single_ticks; i++) {
+
+	double uu = double(i + double_ticks) / double(double_ticks + single_ticks - 1);
+	double cc = sigmoid(uu);
+
+	double ru;
+
+	if (i < rot_dead_ticks) {
+	  ru = 0;
+	} else if (i < rot_dead_ticks + central_ticks) {
+	  ru = double(i - rot_dead_ticks) / double(central_ticks - 1);
+	} else {
+	  ru = 1;
+	}
+
+
         ref.push_back(getLastRef());
         ZMPReferenceContext& cur_context = ref.back();
         cur_context.stance = single_stance;
-        cur_context.feet[swing_foot] = Transform3(quat::fromAxisAngle(vec3(0.0,0.0,1.0),
-                                                                      swing_foot_angle[i]),
-                                                  vec3(swing_foot_traj[i][0],
-                                                       swing_foot_traj[i][1],
-                                                       swing_foot_traj[i][2]));
+
+        cur_context.state.body_rot = quat::slerp(start_context.state.body_rot, 
+                                                 body_rot_end, cc);
+
+
+	cur_context.feet[swing_foot].setRotation(quat::slerp(foot_start_rot, 
+							     foot_end_rot,
+							     ru));
+
+	cur_context.feet[swing_foot].setTranslation(vec3(swing_foot_traj[i][0],
+							 swing_foot_traj[i][1],
+							 swing_foot_traj[i][2]));
     }
 
     // finally, update the first step variable if necessary
@@ -318,7 +361,7 @@ void ZMPWalkGenerator::applyComIK(ZMPReferenceContext& cur) {
 			ikvalid);
 
   // TODO freak out if not ok
-  if (!ok) {
+  if (0 && !ok) {
 
 
 
