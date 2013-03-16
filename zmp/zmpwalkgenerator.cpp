@@ -370,7 +370,7 @@ void ZMPWalkGenerator::applyComIK(ZMPReferenceContext& cur) {
 			cur.ikMode,
 			HuboPlus::noGlobalIK(),
 			body_transforms,
-			0,
+			com_ik_ankle_weight,
 			0,
 			ikvalid);
 
