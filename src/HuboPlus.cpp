@@ -259,6 +259,23 @@ HuboPlus::HuboPlus(const std::string& filename):
     }
   }
 
+  std::cerr << "leg_l1 = " << kc.leg_l1 << "; // neck -> waist Z\n";
+  std::cerr << "leg_l2 = " << kc.leg_l2 << "; // waist -> hip Y\n";
+  std::cerr << "leg_l3 = " << kc.leg_l3 << "; // waist -> hip Z\n";
+  std::cerr << "leg_l4 = " << kc.leg_l4 << "; // hip -> knee Z\n";
+  std::cerr << "leg_l5 = " << kc.leg_l5 << "; // knee -> ankle Z\n";
+  std::cerr << "leg_l6 = " << kc.leg_l6 << "; // ankle to foot Z\n\n";
+
+  std::cerr << "leg_limits << \n";
+  for (size_t i=0; i<jidx.size(); ++i) {
+    std::cerr << "  " << kc.leg_limits(i, 0) << ", " << kc.leg_limits(i, 1);
+    if (i+1 == jidx.size()) {
+      std::cerr << ";\n\n";
+    } else {
+      std::cerr << ",\n";
+    }
+  }
+
   real jy = kc.leg_l2;
   real jz = kc.leg_l1 + kc.leg_l3 + kc.leg_l4 + kc.leg_l5 + kc.leg_l6;
 
