@@ -360,6 +360,7 @@ void usage(std::ostream& ostr) {
     "  -y, --foot-separation-y=NUMBER    Half-distance between feet\n"
     "  -z, --foot-liftoff-z=NUMBER       Vertical liftoff distance of swing foot\n"
     "  -l, --step-length=NUMBER          Max length of footstep\n"
+    "  -S, --walk-sideways               Should we walk sideways? (canned gait only)\n"
     "  -h, --com-height=NUMBER           Height of the center of mass\n"
     "  -a, --comik-angle-weight=NUMBER   Angle weight for COM IK\n"
     "  -Y, --zmp-offset-y=NUMBER         Lateral distance from ankle to ZMP\n"
@@ -449,6 +450,7 @@ int main(int argc, char** argv) {
   double foot_liftoff_z = 0.05; // foot liftoff height
 
   double step_length = 0.05;
+  bool walk_sideways = false;
 
   double com_height = 0.48; // height of COM above ANKLE
   double com_ik_ascl = 0;
@@ -480,6 +482,7 @@ int main(int argc, char** argv) {
     { "foot-separation-y",   required_argument, 0, 'y' },
     { "foot-liftoff-z",      required_argument, 0, 'z' },
     { "step-length",         required_argument, 0, 'l' },
+    { "walk-sideways",       no_argument,       0, 'S' },
     { "com-height",          required_argument, 0, 'h' },
     { "comik-angle-weight",  required_argument, 0, 'a' },
     { "zmp-offset-y",        required_argument, 0, 'Y' },
@@ -494,7 +497,7 @@ int main(int argc, char** argv) {
     { 0,                     0,                 0,  0  },
   };
 
-  const char* short_options = "gAI:w:D:r:c:y:z:l:h:a:Y:X:T:p:n:d:s:R:H";
+  const char* short_options = "gAI:w:D:r:c:y:z:l:Sh:a:Y:X:T:p:n:d:s:R:H";
 
   int opt, option_index;
 
@@ -511,6 +514,7 @@ int main(int argc, char** argv) {
     case 'y': footsep_y = getdouble(optarg); break;
     case 'z': foot_liftoff_z = getdouble(optarg); break;
     case 'l': step_length = getdouble(optarg); break;
+    case 'S': walk_sideways = true; break;
     case 'h': com_height = getdouble(optarg); break;
     case 'a': com_ik_ascl = getdouble(optarg); break;
     case 'Y': zmpoff_y = getdouble(optarg); break;
@@ -650,17 +654,26 @@ int main(int argc, char** argv) {
   default: {
 
     double cur_x[2] = { 0, 0 };
+    double cur_y[2] = { 0, 0 };
+
+    cur_y[0] =  footsep_y;
+    cur_y[1] = -footsep_y;
     
     for (size_t i=0; i<max_step_count; ++i) {
       bool is_left = i%2;
+      if (walk_sideways && step_length < 0) { is_left = !is_left; }
       int swing = is_left ? 0 : 1;
       int stance = 1-swing;
-      if (i + 1 == max_step_count) {
-	cur_x[swing] = cur_x[stance];
+      if (walk_sideways) {
+	cur_y[swing] -= step_length;
       } else {
-	cur_x[swing] = cur_x[stance] + 0.5*step_length;
+	if (i + 1 == max_step_count) {
+	  cur_x[swing] = cur_x[stance];
+	} else {
+	  cur_x[swing] = cur_x[stance] + 0.5*step_length;
+	}
       }
-      footprints.push_back(Footprint(cur_x[swing], is_left ? footsep_y : -footsep_y, 0, is_left));
+      footprints.push_back(Footprint(cur_x[swing], cur_y[swing], 0, is_left));
     }
 
     break;
