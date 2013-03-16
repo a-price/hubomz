@@ -70,16 +70,16 @@ void ZMPWalkGenerator::stayDogStay(size_t stay_ticks) {
 
     double u = double(i) / double(shift_ticks - 1);
     double c = sigmoid(u);
-    
+
     cur.stance = double_stance;
-    
+
     vec3 cur_zmp = zmp_start + (zmp_end - zmp_start) * c;
 
     cur.pX = cur_zmp.x();
     cur.pY = cur_zmp.y();
-    
+
     ref.push_back(cur);
-    
+
   }
 
   for (size_t i=shift_ticks; i<stay_ticks; ++i) {
@@ -119,7 +119,7 @@ void ZMPWalkGenerator::addFootstep(const Footprint& fp) {
 
     // figure out the start and end positions of the zmp
     vec3 zmp_end = start_context.feet[stance_foot].translation();
-    vec3 zmp_start = vec3(start_context.pX, start_context.pX, 0);
+    vec3 zmp_start = vec3(start_context.pX, start_context.pY, 0);
 
     // figure out how far the swing foot will be moving
     double dist = (fp.transform.translation() - start_context.feet[swing_foot].translation()).norm();
@@ -129,9 +129,9 @@ void ZMPWalkGenerator::addFootstep(const Footprint& fp) {
         fp.transform.rotFwd() * vec3(1.0, 0.0, 0.0) +
         start_context.feet[swing_foot].rotFwd() * vec3(1.0, 0.0, 0.0);
     double dist_theta = atan2(rotation_intermediate.y(), rotation_intermediate.x()); // hooray for bad code!
-    
+
     // figure out how long we spend in each stage
-    // TODO: 
+    // TODO:
     //  dist for double support should be distance ZMP moves
     //  no theta or step height needed for double support
     //
@@ -142,7 +142,7 @@ void ZMPWalkGenerator::addFootstep(const Footprint& fp) {
 
     //size_t double_ticks = TRAJ_FREQ_HZ * min_double_support_time;
     //size_t single_ticks = TRAJ_FREQ_HZ * min_single_support_time;
-    
+
     for (size_t i = 0; i < double_ticks; i++) {
         // sigmoidally interopolate things like desired ZMP and body
         // rotation. we run the sigmoid across both double and isngle
@@ -150,7 +150,7 @@ void ZMPWalkGenerator::addFootstep(const Footprint& fp) {
         // split-second we're in double support.
         double u = double(i) / double(double_ticks - 1);
         double c = sigmoid(u);
-        
+
         ZMPReferenceContext cur_context;
         cur_context.stance = double_stance;
 
@@ -163,7 +163,7 @@ void ZMPWalkGenerator::addFootstep(const Footprint& fp) {
 
         cur_context.state = start_context.state;
         cur_context.state.jvalues = fakerave::RealArray(start_context.state.jvalues);
-        cur_context.state.body_rot = quat::slerp(start_context.state.body_rot, 
+        cur_context.state.body_rot = quat::slerp(start_context.state.body_rot,
                                                  body_rot_end,
                                                  c);
 
@@ -218,7 +218,7 @@ void ZMPWalkGenerator::bakeIt() {
 
     // TODO: for thinkin ahead
     //initContext = ref[first_step_index];
-    
+
     ref.clear();
     haveInitContext = false;
 
@@ -235,8 +235,8 @@ void ZMPWalkGenerator::runZMPPreview() {
 
     Eigen::Vector3d comX = initContext.comX; // initialize comX states to initial ZMPReferenceContext
     Eigen::Vector3d comY = initContext.comY; // initialize comY states to initial ZMPReferenceContext
-    double eX = initContext.eX; // 
-    double eY = initContext.eY; // 
+    double eX = initContext.eX; //
+    double eY = initContext.eY; //
     Eigen::ArrayXd zmprefX(ref.size());
     Eigen::ArrayXd zmprefY(ref.size());
 
@@ -302,17 +302,17 @@ void ZMPWalkGenerator::applyComIK(ZMPReferenceContext& cur) {
   cur.ikMode[HuboPlus::MANIP_R_HAND] = HuboPlus::IK_MODE_FIXED;
 
   // only moving left foot in current code
-        
+
   // set up ikvalid
   bool ikvalid[4];
-        
+
   // and run IK. Everything we need goes straight into cur.state! cool.
   bool ok = hplus.comIK(cur.state,
 			desiredCom,
 			desired,
-			cur.ikMode, 
+			cur.ikMode,
 			HuboPlus::noGlobalIK(),
-			body_transforms, 
+			body_transforms,
 			0,
 			0,
 			ikvalid);
@@ -336,9 +336,9 @@ void ZMPWalkGenerator::applyComIK(ZMPReferenceContext& cur) {
 	// get the transformations to each one
 	actual[i] = hplus.kbody.manipulatorFK(body_transforms, i);
 	//if it's in world of support cur.ikMode
-	if (cur.ikMode[i] == HuboPlus::IK_MODE_WORLD || 
+	if (cur.ikMode[i] == HuboPlus::IK_MODE_WORLD ||
 	    cur.ikMode[i] == HuboPlus::IK_MODE_SUPPORT) {
-	  // get the actual transformation from ?? 
+	  // get the actual transformation from ??
 	  actual[i] = cur.state.xform() * actual[i];
 	}
 
@@ -352,7 +352,7 @@ void ZMPWalkGenerator::applyComIK(ZMPReferenceContext& cur) {
     std::cerr << "  body:        " << cur.state.xform() << "\n";
     std::cerr << "  desired com: " << desiredCom << "\n";
     std::cerr << "  actual com:  " << actualCom << "\n\n";
-    for (int i=0; i<4; ++i) { 
+    for (int i=0; i<4; ++i) {
       if (cur.ikMode[i] != HuboPlus::IK_MODE_FIXED &&
 	  cur.ikMode[i] != HuboPlus::IK_MODE_FREE) {
 	std::cerr << "  " << hplus.kbody.manipulators[i].name << ":\n";
@@ -373,7 +373,7 @@ void ZMPWalkGenerator::applyComIK(ZMPReferenceContext& cur) {
 
 /**
  * @function: dumpTraj()
- * @brief: picks everything important out of ref which is now fully specified and creates a trajectory 
+ * @brief: picks everything important out of ref which is now fully specified and creates a trajectory
  * @precondition: we have ref fully filled in
  * @postcondition: forces and torque are calculated and everything is transformed into stance ankle reference frame
  * @return: void
@@ -385,15 +385,15 @@ void ZMPWalkGenerator::dumpTraj() {
     refToTraj(*cur_ref, traj.back());
   }
 }
-  
+
 void ZMPWalkGenerator::refToTraj(const ZMPReferenceContext& cur_ref,
 				 zmp_traj_element_t& cur_out) {
 
-	
-        
+
+
   // copy stance into output
   cur_out.stance = cur_ref.stance;
-        
+
   // copy joint angles from reference to output
   for (size_t phys_i=0; phys_i < hplus.huboJointOrder.size(); phys_i++) {
     // map simulation joint number to physical joint number
@@ -402,7 +402,7 @@ void ZMPWalkGenerator::refToTraj(const ZMPReferenceContext& cur_ref,
       cur_out.angles[phys_i] = cur_ref.state.jvalues[sim_i];
     }
   }
-        
+
   // compute expected forces and torques and copy into output
   vec3 forces[2];
   vec3 torques[2];
