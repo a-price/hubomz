@@ -20,6 +20,7 @@ int main( int argc, char* argv[] ) {
 
   int count;
   bool isLeft;
+  double maxheight;
   
   double pos[N][3];
   double yaw[N];
@@ -31,10 +32,12 @@ int main( int argc, char* argv[] ) {
   // x1 = 0.2; y1 = 0; theta1 = 0;
   count = 300;
   isLeft = false;
+  maxheight = 2;
   
   swingSimpleBezier( x0, y0, theta0,
 		     x1, y1, theta1,
 		     count, isLeft,
+                     maxheight,
 		     pos, yaw );
   
   // Get velocity and acceleration plots

@@ -21,8 +21,10 @@ endif()
 # TESTING
 #
 
+
 enable_testing()
 add_subdirectory(gtest-1.6.0)
+include_directories(${PROJECT_SOURCE_DIR}/gtest-1.6.0/include) 
 
 add_executable(footprint-test zmp/footprint-test.cpp zmp/footprint.cpp )
 target_link_libraries(footprint-test gtest gtest_main)

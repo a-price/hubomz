@@ -676,7 +676,7 @@ void HuboPlus::computeGroundReaction(const vec3& comPos,
 
     // Find the displacement between the feet
     vec3 ry = footXforms[0].translation() - footXforms[1].translation();
-    assert(ry.z() == 0);
+    assert( fabs(ry.z()) < 1e-4 );
 
     // Let d be the distance between the feet
     real d = ry.norm();
