@@ -7,6 +7,8 @@
 ZMPWalkGenerator::ZMPWalkGenerator(HuboPlus& _hplus,
                                    double com_height,
                                    double zmp_R,
+				   double zmpoff_x,
+				   double zmpoff_y,
                                    double com_ik_ankle_weight,
                                    double min_single_support_time,
                                    double min_double_support_time,
@@ -17,6 +19,8 @@ ZMPWalkGenerator::ZMPWalkGenerator(HuboPlus& _hplus,
     hplus(_hplus),
     com_height(com_height),
     zmp_R(zmp_R),
+    zmpoff_x(zmpoff_x),
+    zmpoff_y(zmpoff_y),
     com_ik_ankle_weight(com_ik_ankle_weight),
     min_single_support_time(min_single_support_time),
     min_double_support_time(min_double_support_time),
@@ -59,10 +63,20 @@ void ZMPWalkGenerator::stayDogStay(size_t stay_ticks) {
   ZMPReferenceContext cur = getLastRef();
 
   vec3 zmp_start(cur.pX, cur.pY, 0);
-  vec3 zmp_end = 0.5 * (cur.feet[0].translation() + cur.feet[1].translation());
+  
+  Transform3 midfoot( quat::slerp(cur.feet[0].rotation(),
+				  cur.feet[1].rotation(),
+				  0.05),
+		      0.5 * (cur.feet[0].translation() +
+			     cur.feet[1].translation() ) );
+		      
+
+  vec3 zmp_end = midfoot * vec3(zmpoff_x, zmpoff_y, 0);
+
 
   stance_t double_stance = DOUBLE_LEFT;
 
+  // TODO: get from timer!!
   size_t shift_ticks = TRAJ_FREQ_HZ * min_double_support_time;
   if (shift_ticks > stay_ticks) { shift_ticks = stay_ticks; }
 
@@ -119,7 +133,7 @@ void ZMPWalkGenerator::addFootstep(const Footprint& fp) {
                                     0.5);
 
     // figure out the start and end positions of the zmp
-    vec3 zmp_end = start_context.feet[stance_foot].translation();
+    vec3 zmp_end = start_context.feet[stance_foot] * vec3(zmpoff_x, zmpoff_y, 0);
     vec3 zmp_start = vec3(start_context.pX, start_context.pX, 0);
 
     // figure out how far the swing foot will be moving

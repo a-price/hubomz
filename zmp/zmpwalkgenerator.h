@@ -33,6 +33,8 @@ public:
     ZMPWalkGenerator(HuboPlus& _hplus,
                      double com_height,
                      double zmp_R,
+		     double zmpoff_x,
+		     double zmpoff_y,
                      double com_ik_ankle_weight,
                      double min_single_support_time,
                      double min_double_support_time,
@@ -45,6 +47,8 @@ public:
     const HuboPlus& hplus;
     double com_height;
     double zmp_R; // jerk penalty on ZMP controller
+    double zmpoff_x;
+    double zmpoff_y;
     double com_ik_ankle_weight;
     double min_single_support_time;
     double min_double_support_time;
