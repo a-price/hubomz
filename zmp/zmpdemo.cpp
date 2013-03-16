@@ -588,7 +588,7 @@ int main(int argc, char** argv) {
 
   // fill in the rest
   initContext.stance = DOUBLE_LEFT;
-  initContext.comX = Eigen::Vector3d(0.0, 0.0, 0.0);
+  initContext.comX = Eigen::Vector3d(zmpoff_x, 0.0, 0.0);
   initContext.comY = Eigen::Vector3d(0.0, 0.0, 0.0);
   initContext.eX = 0.0;
   initContext.eY = 0.0;
