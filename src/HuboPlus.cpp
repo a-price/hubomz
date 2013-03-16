@@ -16,6 +16,26 @@
 using namespace fakerave;
 using namespace HK;
 
+  enum IKMode {
+    IK_MODE_FREE,    // you can do whatever you want to these joint angles
+    IK_MODE_FIXED,   // joint angles already specified, do not mess with them
+    IK_MODE_BODY,    // manipulator specified relative to body
+    IK_MODE_WORLD,   // manipulator specified relative to world
+    IK_MODE_SUPPORT, // manipulator specfied relative to world, and holding up robot
+  };
+  
+const char* HuboPlus::ikModeString(int i) {
+  switch (i) {
+  case IK_MODE_FREE:    return "free";
+  case IK_MODE_FIXED:   return "fixed";
+  case IK_MODE_BODY:    return "body";
+  case IK_MODE_WORLD:   return "world";
+  case IK_MODE_SUPPORT: return "support";
+  default: return "[INVALID]";
+  }
+}
+
+
 static inline void _assert_equal(real x, real y, 
                                  const char* xstr, 
                                  const char* ystr,

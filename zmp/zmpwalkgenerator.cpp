@@ -384,43 +384,70 @@ void ZMPWalkGenerator::applyComIK(ZMPReferenceContext& cur) {
     hplus.kbody.transforms(cur.state.jvalues, body_transforms);
     vec3 actualCom = cur.state.xform() * hplus.kbody.com(body_transforms);
 
+    bool permissive_ok = (actualCom - desiredCom).norm() < hplus.DEFAULT_COM_PTOL;
+
     // loop through legs and arms to calculate results
     for (int i=0; i<4; ++i) {
-      // if it's allowed to move
+
+      // are we in world or supporting?
       if (cur.ikMode[i] != HuboPlus::IK_MODE_FIXED &&
 	  cur.ikMode[i] != HuboPlus::IK_MODE_FREE) {
-	// get the transformations to each one
+
+	// get the FK for the manipulator
 	actual[i] = hplus.kbody.manipulatorFK(body_transforms, i);
-	//if it's in world of support cur.ikMode
+
+	// if relative to world, offset
 	if (cur.ikMode[i] == HuboPlus::IK_MODE_WORLD ||
 	    cur.ikMode[i] == HuboPlus::IK_MODE_SUPPORT) {
-	  // get the actual transformation from ??
 	  actual[i] = cur.state.xform() * actual[i];
 	}
 
+	// compute desired - actual
 	deltaTransform(desired[i], actual[i], dp[i], dq[i]);
 
-	// TODO: allow feet far away from ground to have IK failures
+	if (!ikvalid[i]) {
+	  // TODO: hacky - this assumes walking on flat ground
+	  // TODO: hacky - this hardcodes distance tolerances
+
+	  if ( ! ( ik_sense == ik_swing_permissive &&
+		   cur.ikMode[i] == HuboPlus::IK_MODE_WORLD &&
+		   desired[i].translation().z() > 0.03 &&
+		   dp[i].norm() < 0.002 &&
+		   dq[i].norm() < 4 * M_PI/180) ) {
+	    permissive_ok = false;
+	  }
+	}
+
       }
     }
 
-    std::cerr << "IK FAILURE!\n\n";
-    std::cerr << "  body:        " << cur.state.xform() << "\n";
-    std::cerr << "  desired com: " << desiredCom << "\n";
-    std::cerr << "  actual com:  " << actualCom << "\n\n";
-    for (int i=0; i<4; ++i) {
-      if (cur.ikMode[i] != HuboPlus::IK_MODE_FIXED &&
-	  cur.ikMode[i] != HuboPlus::IK_MODE_FREE) {
-	std::cerr << "  " << hplus.kbody.manipulators[i].name << ":\n";
-	std::cerr << "    valid:   " << ikvalid[i] << "\n";
-	std::cerr << "    desired: " << desired[i] << "\n";
-	std::cerr << "    actual:  " << actual[i] << "\n";
-	std::cerr << "    dp:      " << dp[i] << " with norm " << dp[i].norm() << "\n";
-	std::cerr << "    dq:      " << dq[i] << " with norm " << dq[i].norm() << "\n";
-	std::cerr << "\n";
-      }
+    if (ik_sense == ik_swing_permissive) {
+      ok = permissive_ok;
     }
-    exit(1);
+
+    if (!ok) {
+
+      std::cerr << "IK FAILURE!\n\n";
+      std::cerr << "  body:        " << cur.state.xform() << "\n";
+      std::cerr << "  desired com: " << desiredCom << "\n";
+      std::cerr << "  actual com:  " << actualCom << "\n\n";
+      for (int i=0; i<4; ++i) {
+	if (cur.ikMode[i] != HuboPlus::IK_MODE_FIXED &&
+	    cur.ikMode[i] != HuboPlus::IK_MODE_FREE) {
+	  std::cerr << "  " << hplus.kbody.manipulators[i].name << ":\n";
+	  std::cerr << "    mode:    " << HuboPlus::ikModeString(cur.ikMode[i]) << "\n";
+	  std::cerr << "    valid:   " << ikvalid[i] << "\n";
+	  std::cerr << "    desired: " << desired[i] << "\n";
+	  std::cerr << "    actual:  " << actual[i] << "\n";
+	  std::cerr << "    dp:      " << dp[i] << " with norm " << dp[i].norm() << "\n";
+	  std::cerr << "    dq:      " << dq[i] << " with norm " << dq[i].norm() << "\n";
+	  std::cerr << "\n";
+	}
+      }
+      exit(1);
+
+    }
+
   } // finish freaking out
 
   // and we're done!

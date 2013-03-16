@@ -216,7 +216,7 @@ if __name__ == "__main__":
     nl = int(round(2.5/T))
 
     # Create our preview controller
-    preview = ZmpPreview(T, h, nl, R=1e-5)
+    preview = ZmpPreview(T, h, nl, R=1e-10)
 
     ##################################################
     # Now set up a simple forward/backward trajectory

@@ -34,6 +34,8 @@ public:
     IK_MODE_SUPPORT, // manipulator specfied relative to world, and holding up robot
   };
   
+  static const char* ikModeString(int i);
+  
   class KState {
   public:
 

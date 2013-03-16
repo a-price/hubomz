@@ -421,6 +421,8 @@ ZMPWalkGenerator::ik_error_sensitivity getiksense(const std::string& s) {
     return ZMPWalkGenerator::ik_strict;
   } else if (s == "sloppy") {
     return ZMPWalkGenerator::ik_sloppy;
+  } else if (s == "permissive") {
+    return ZMPWalkGenerator::ik_swing_permissive;
   } else {
     std::cerr << "bad ik error sensitivity " << s << "\n";
     usage(std::cerr);
@@ -653,7 +655,11 @@ int main(int argc, char** argv) {
       bool is_left = i%2;
       int swing = is_left ? 0 : 1;
       int stance = 1-swing;
-      cur_x[swing] = cur_x[stance] + step_length;
+      if (i + 1 == max_step_count) {
+	cur_x[swing] = cur_x[stance];
+      } else {
+	cur_x[swing] = cur_x[stance] + 0.5*step_length;
+      }
       footprints.push_back(Footprint(cur_x[swing], is_left ? footsep_y : -footsep_y, 0, is_left));
     }
 

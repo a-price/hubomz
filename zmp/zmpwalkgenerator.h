@@ -34,7 +34,7 @@ public:
   
   enum ik_error_sensitivity {
     ik_strict, // default
-    // TODO: ik_swing_permissive - allows ik errors on swing foot when above 0.5 * step_height
+    ik_swing_permissive, // allows ik errors on swing foot when above 0.5 * step_height
     ik_sloppy, // never ever ever ever run this on the robot
     
   };
