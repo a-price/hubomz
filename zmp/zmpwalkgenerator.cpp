@@ -308,13 +308,14 @@ void ZMPWalkGenerator::runZMPPreview() {
     for(size_t i = 0; i < ref.size(); i++) {
         ZMPReferenceContext& cur = ref[i];
         // run zmp preview controller to update COM states and integrator error
-        preview.update(comX, eX, zmprefX.block(i, 0, zmprefX.size()-i, 1));
-        preview.update(comY, eY, zmprefY.block(i, 0, zmprefX.size()-i, 1));
-        cur.comX = comX.transpose(); // set the ref comX pos/vel/acc for this tick
-        cur.comY = comY.transpose(); // set the ref comY pos/vel/acc for this tick
+        preview.update(comX, eX, zmprefX);
+        preview.update(comY, eY, zmprefY);
+        cur.comX = comX; // set the ref comX pos/vel/acc for this tick
+        cur.comY = comY; // set the ref comY pos/vel/acc for this tick
         cur.eX = eX;                 // set the X error for this tick
         cur.eY = eY;                 // set the Y error for this tick
     }
+
 }
 
 /**
@@ -474,19 +475,33 @@ void ZMPWalkGenerator::refToTraj(const ZMPReferenceContext& cur_ref,
     cur_out.torque[1][axis] = torques[0][axis]; // right foot torques
   }
 
+  std::cout << "left  foot forces: " << forces[0] << "\n";
+  std::cout << "right foot forces: " << forces[1] << "\n";
+
+  std::cout << "left  foot torques: " << torques[0] << "\n";
+  std::cout << "right foot torques: " << torques[1] << "\n";
+
   // transform zmp and com into stance ankle reference frame, copy into output
   Transform3 stance_foot_trans = cur_ref.stance == SINGLE_LEFT || cur_ref.stance == DOUBLE_LEFT
     ? cur_ref.feet[0] : cur_ref.feet[1];
   vec3 zmp_in_world(cur_ref.pX, cur_ref.pY, 0);
   vec3 zmp_in_stance = stance_foot_trans.transformInv(zmp_in_world);
+
   cur_out.zmp[0] = zmp_in_stance.x();
   cur_out.zmp[1] = zmp_in_stance.y();
+
   for (size_t deriv = 0; deriv < 3; deriv++) {
-    vec3 com_in_world(cur_ref.comX[0], cur_ref.comY[0], deriv == 0 ? com_height : 0);
-    vec3 com_in_stance = stance_foot_trans.transformInv(com_in_world);
+
+    vec3 com_in_world(cur_ref.comX[deriv], cur_ref.comY[deriv], deriv == 0 ? com_height : 0);
+
+    vec3 com_in_stance = ( deriv == 0 ?
+			   stance_foot_trans.transformInv(com_in_world) :
+			   stance_foot_trans.rotInv() * com_in_world );
+
     cur_out.com[0][deriv] = com_in_stance.x();
     cur_out.com[1][deriv] = com_in_stance.y();
     cur_out.com[2][deriv] = com_in_stance.z();
+
   }
 
 
