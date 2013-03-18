@@ -14,4 +14,4 @@ target_link_libraries(zmpdemo ${zmpdemo_libs})
 
 
 add_executable(gait-timer-test gait-timer-test.cpp gait-timer.cpp)
-target_link_libraries(zmpdemo hubomz mzcommon ${OPENGL_LIBRARY} ${GLUT_LIBRARY} expat ach)
+target_link_libraries(gait-timer-test ${zmpdemo_libs})
