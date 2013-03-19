@@ -44,7 +44,11 @@ directory of this repository.
 Now, you can run the software, for instance:
 
     cd /path/to/hubomz/build
-    ./walkdemo ../myhubo.kinbody.xml
+    ./zmpdemo -g ../myhubo.kinbody.xml
+    
+On the mac, instead run
+
+    ./zmpdemo.app/Contents/MacOS/zmpdemo -g ../myhubo.kinbody.xml
 
 
 Tests
