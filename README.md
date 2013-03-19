@@ -24,7 +24,7 @@ You must install cmake to build the software as well.  To build:
     cd /path/to/hubomz
     mkdir build
     cd build
-    cmake .. 
+    cmake .. -DCMAKE_BUILD_TYPE=Release
     make
 
 To run the software, you will need an OpenRAVE model of the Hubo plus.
