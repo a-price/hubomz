@@ -12,6 +12,9 @@ target_link_libraries( testzmp hubomz mzcommon ${OPENGL_LIBRARY} expat )
 add_executable( testik testik.cpp )
 target_link_libraries( testik hubomz mzcommon ${OPENGL_LIBRARY} expat )
 
+add_executable( testcomik testcomik.cpp )
+target_link_libraries( testcomik hubomz mzcommon ${OPENGL_LIBRARY} expat )
+
 add_executable( reconcile reconcile.cpp )
 target_link_libraries( reconcile hubomz mzcommon ${OPENGL_LIBRARY} expat )
 
