@@ -498,10 +498,10 @@ void ZMPWalkGenerator::refToTraj(const ZMPReferenceContext& cur_ref,
 			       forces,  // forces output
 			       torques); // torques output
   for (size_t axis=0; axis<3; axis++) {  // here's one of the places we have to swap handedness
-    cur_out.forces[0][axis] = forces[1][axis]; // left foot forces
-    cur_out.torque[0][axis] = torques[1][axis]; // left foot torques
-    cur_out.forces[1][axis] = forces[0][axis];  // right foot forces
-    cur_out.torque[1][axis] = torques[0][axis]; // right foot torques
+    cur_out.forces[1][axis] = forces[0][axis];  // left foot forces
+    cur_out.torque[1][axis] = torques[0][axis]; // left foot torques
+    cur_out.forces[0][axis] = forces[1][axis]; // right foot forces
+    cur_out.torque[0][axis] = torques[1][axis]; // right foot torques
   }
 
 
