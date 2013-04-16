@@ -28,7 +28,7 @@ double Footprint::theta() const {
 
 
 Footprint::Footprint(){
-    Footprint( 0.0, 0.0, 0.0, 0.0 );
+    Footprint( 0.0, 0.0, 0.0, false );
 }
 
 Transform3 Footprint::getTransform3() const {
