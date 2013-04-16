@@ -617,7 +617,7 @@ int main(int argc, char** argv) {
   // build ourselves some footprints
   
   Footprint initLeftFoot = Footprint(initContext.feet[0], true);
-  Footprint initRightFoot = Footprint(initContext.feet[1], false);
+  /* Footprint initRightFoot = Footprint(initContext.feet[1], false); */
 
   std::vector<Footprint> footprints;
 
@@ -631,9 +631,7 @@ int main(int argc, char** argv) {
 			    footsep_y,
 			    step_length,
 			    circle_max_step_angle,
-			    &initLeftFoot,
-			    &initRightFoot,
-			    false);
+			    initLeftFoot);
 
     break;
 
@@ -643,9 +641,7 @@ int main(int argc, char** argv) {
 
     footprints = walkLine(walk_dist, footsep_y,
 			  step_length,
-			  &initLeftFoot,
-			  &initRightFoot,
-			  false);
+			  initLeftFoot);
 
     break;
 

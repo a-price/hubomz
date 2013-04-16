@@ -51,17 +51,13 @@ bool is_odd(int i) {
 vector<Footprint> walkLine(double distance,
                            double width,
                            double max_step_length,
-                           Footprint* init_left,
-                           Footprint* init_right,
-                           bool left_is_stance_foot) {
-    return walkCircle(1e100,
+                           Footprint stance_foot) {
+    return walkCircle(1e13,
                       distance,
                       width,
                       max_step_length,
                       3.14,
-                      init_left,
-                      init_right,
-                      left_is_stance_foot);
+                      stance_foot);
 }
 
 vector<Footprint> walkCircle(double radius,
@@ -69,23 +65,18 @@ vector<Footprint> walkCircle(double radius,
                              double width,
                              double max_step_length,
                              double max_step_angle,
-                             Footprint* init_left,
-                             Footprint* init_right,
-                             bool left_is_stance_foot) {
+                             Footprint stance_foot) {
     assert(distance > 0);
     assert(width > 0);
     assert(max_step_length > 0);
     assert(max_step_angle >= -3.14159265359);
     assert(max_step_angle < 3.14159265359);
-    assert((left_is_stance_foot ? init_left : init_right)
-           && "The stance foot must not be null");
+
+    bool left_is_stance_foot = stance_foot.is_left;
 
     // select stance foot, fill out transforms
-    Footprint* stance_foot;
-    if (left_is_stance_foot) stance_foot = init_left;
-    else stance_foot = init_right;
     Transform3 T_circle_to_world =
-        stance_foot->transform
+        stance_foot.transform
         * Transform3(quat(), vec3(0, left_is_stance_foot?-width:width, 0));
 
     double alpha = distance / abs(radius);
@@ -93,7 +84,7 @@ vector<Footprint> walkCircle(double radius,
     int K_step_length = ceil(outer_dist / max_step_length);
     int K_angle = ceil(alpha / max_step_angle);
     int K = max(K_step_length, K_angle);
-    double dTheta = alpha/K * radius/(abs(radius));
+    double dTheta = alpha/K * (radius > 0 ? 1 : -1 );
 
 #ifdef DEBUG
     cout << "outer_dist IS " << outer_dist << endl;
@@ -151,8 +142,11 @@ vector<Footprint> walkCircle(double radius,
     for(std::vector<Footprint>::iterator it = result.begin(); it < result.end(); it++) {
         it->transform = T_circle_to_world * it->transform;
     }
-    result.insert(result.begin(), Footprint(*stance_foot));
+    result.insert(result.begin(), stance_foot);
 
     // return the result
     return result;
+}
+
+vector<Footprint> walkTo(Footprint from, Footprint to) {
 }
