@@ -58,8 +58,8 @@ void drawFootprints(const std::vector<Footprint>& footprints, const double foot_
 
 		// Transform into the foot's frame
 		glPushMatrix();
-		glTranslated(footprints[i].x, footprints[i].y, 0.0);
-		glRotated(-footprints[i].theta*180/M_PI, 0.0, 0.0, 1.0); //in degrees ?!
+		glTranslated(footprints[i].x(), footprints[i].y(), 0.0);
+		glRotated(-footprints[i].theta()*180/M_PI, 0.0, 0.0, 1.0); //in degrees ?!
 
 		// Draw the center of the foot
 		glBegin(GL_POINTS);
