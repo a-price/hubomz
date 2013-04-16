@@ -10,7 +10,9 @@ using namespace std;
   EXPECT_NEAR((foot).x(), _x, 1e-12);                   \
   EXPECT_NEAR((foot).y(), _y, 1e-12);                   \
   EXPECT_DOUBLE_EQ(_theta, (foot).theta());             \
-  EXPECT_EQ(_is_left,(foot).is_left);                   \
+  EXPECT_EQ(int(_is_left), int((foot).is_left));
+  // The reason for the int cast is otherwise we get false warnings,
+  // see <http://code.google.com/p/googletest/issues/detail?id=322>
 
 #define EXPECT_FEET_EQ2(foot1, foot2)                                   \
   EXPECT_FEET_EQ(foot1, (foot2).x(), (foot2).y(), (foot2).theta(), (foot2).is_left);
@@ -119,7 +121,7 @@ TEST(Footprint, lineWalking)
   // FIXME: line should not start with two side-by-side steps
 
   EXPECT_FALSE(res.empty());
-  EXPECT_LT(res.size(), 10000);
+  EXPECT_LT(res.size(), 10000u);
   int N = res.size();
   EXPECT_DOUBLE_EQ(0, res[0].x());
   EXPECT_DOUBLE_EQ(0, res[1].x());
@@ -153,7 +155,7 @@ TEST(Footprint, lineWalking2)
                                    new Footprint(1, -1, theta, false),
                                    true);
   EXPECT_FALSE(res.empty());
-  EXPECT_LT(res.size(), 10000);
+  EXPECT_LT(res.size(), 10000u);
 
   EXPECT_FEET_EQ(res[0], -1, 1, theta, LEFT);
   EXPECT_FEET_EQ(res[1], 1, -1, theta, RIGHT);
@@ -181,7 +183,7 @@ TEST(Footprint, lineWalking3)
                                    new Footprint(-1, -1, theta, false),
                                    false);
   EXPECT_FALSE(res.empty());
-  EXPECT_LT(res.size(), 10000);
+  EXPECT_LT(res.size(), 10000u);
 
   EXPECT_FEET_EQ(res[0], -1, -1, theta, RIGHT);
   EXPECT_FEET_EQ(res[1], 1, 1, theta, LEFT);
@@ -223,7 +225,7 @@ TEST(Footprint, circleWalking)
     );
 
   EXPECT_FALSE(res.empty());
-  EXPECT_LT(res.size(), 10000);
+  EXPECT_LT(res.size(), 10000u);
   int N = res.size();
 
   EXPECT_EQ(N, 12);
@@ -254,7 +256,7 @@ TEST(Footprint, circleWalking2)
   vector<Footprint> res(th.res);
 
   EXPECT_FALSE(res.empty());
-  EXPECT_LT(res.size(), 10000);
+  EXPECT_LT(res.size(), 10000u);
   int N = res.size();
 
   EXPECT_EQ(N, 12);
