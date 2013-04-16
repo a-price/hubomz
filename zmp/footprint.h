@@ -39,7 +39,7 @@ public:
  * \fn walkLine
  * \brief Generates a foot plan for walking in a straight line (parallel to the robot's current orientation)
  */
-std::vector<Footprint> walkLine(double dist, /// The distance to walk in meters
+std::vector<Footprint> walkLine(double distance, /// The distance to walk in meters
                                 double width, /// The ground distance between the center of the robot to the center of a foot
                                 double max_step_length, /// The maximum allowed length the robot may step
                                 Footprint* init_left, /// The position the left foot starts in

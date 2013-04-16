@@ -118,22 +118,19 @@ TEST(Footprint, lineWalking)
                                    new Footprint(0.0, -1.0, 0.0, false),
                                    true);
 
-  // FIXME: line should not start with two side-by-side steps
-
   EXPECT_FALSE(res.empty());
   EXPECT_LT(res.size(), 10000u);
   int N = res.size();
   EXPECT_DOUBLE_EQ(0, res[0].x());
-  EXPECT_DOUBLE_EQ(0, res[1].x());
-  EXPECT_DOUBLE_EQ(2.5, res[2].x());
-  EXPECT_DOUBLE_EQ(5, res[3].x());
-  EXPECT_DOUBLE_EQ(7.5, res[4].x());
+  EXPECT_DOUBLE_EQ(2.5, res[1].x());
+  EXPECT_DOUBLE_EQ(5, res[2].x());
+  EXPECT_DOUBLE_EQ(7.5, res[3].x());
   EXPECT_DOUBLE_EQ(10, res[N-2].x());
   EXPECT_DOUBLE_EQ(10, res[N-1].x());
   EXPECT_LT(res[N-3].x(), 9);
 
-  EXPECT_TRUE(res[0].is_left);
-  EXPECT_FALSE(res[1].is_left);
+  EXPECT_FALSE(res[0].is_left);
+  EXPECT_TRUE(res[1].is_left);
 
   EXPECT_FALSE(res[N-2].is_left);
   EXPECT_TRUE(res[N-1].is_left);
