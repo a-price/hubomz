@@ -19,12 +19,12 @@ Footprint::Footprint(double x, double y, double theta, bool is_left) {
     this->is_left = is_left;
 }
 
-double Footprint::x() const { return this->transform.translation().x(); } 
-double Footprint::y() const{ return this->transform.translation().y(); } 
+double Footprint::x() const { return this->transform.translation().x(); }
+double Footprint::y() const{ return this->transform.translation().y(); }
 double Footprint::theta() const {
     vec3 forward = this->transform.rotFwd() * vec3(1.0, 0.0, 0.0);
     return atan2(forward.y(), forward.x());
-} 
+}
 
 
 Footprint::Footprint(){
@@ -61,7 +61,7 @@ vector<Footprint> walkLine(double dist,
     assert(max_step_length > 0);
     assert((left_is_stance_foot ? init_left : init_right)
            && "The stance foot must not be null");
-    
+
     // select stance foot, fill out transforms
     Footprint* stance_foot;
     if (left_is_stance_foot) stance_foot = init_left;
