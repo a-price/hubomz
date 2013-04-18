@@ -40,6 +40,10 @@ void Footprint::setTransform3(Transform3 transform){
     this->transform = transform;
 }
 
+Transform3 Footprint::getMidTransform3(double width) const {
+  return getTransform3() * Transform3(quat(), vec3(0, is_left?-width:width, 0));
+}
+
 bool is_even(int i) {
     return (i%2) == 0;
 }
@@ -148,5 +152,69 @@ vector<Footprint> walkCircle(double radius,
     return result;
 }
 
-vector<Footprint> walkTo(Footprint from, Footprint to) {
+vector<Footprint> turnInPlace(
+                         double desired_angle, /// The desired angle
+                         double width, /// The desired angle
+                         double max_step_angle, /// The maximum HALF angle between successive steps
+                         Footprint from /// Where we start from. Note that this exact foot will be repeated in the output
+    )
+{
+  assert(max_step_angle >= -3.14159265359);
+  assert(max_step_angle <   3.14159265359);
+  assert(desired_angle >=  -3.14159265359);
+  assert(desired_angle <    3.14159265359);
+  assert(from.theta() >=   -3.14159265359);
+  assert(from.theta() <     3.14159265359);
+
+  double goal_angle = desired_angle-from.theta();
+  if(goal_angle >= 3.14159265359) goal_angle -= 3.14159265359;
+  else if( goal_angle < -3.14159265359) goal_angle -= 3.14159265359;
+  double eps = 1e-10;
+  return walkCircle(eps, eps*goal_angle, width, 1000, max_step_angle, from);
+}
+
+Transform3 compensate(double width, bool is_left) {
+  return Transform3(quat(), vec3(0, is_left?-width:width, 0));
+
+}
+
+vector<Footprint> walkTo(
+    double width, /// The maximum HALF angle between successive steps
+    double max_step_length, /// The maximum HALF allowed length the robot may step
+    double max_step_angle, /// The maximum HALF angle between successive steps
+    Footprint from, /// Where we start from. Note that this exact foot will be repeated in the output
+    Footprint to /// Where we should end at. Note that this exact foot will be repeated in the output
+    )
+{
+  /* double walk_angle = to. */
+  Transform3 T_delta = from.getMidTransform3(width).inverse() * to.getMidTransform3(width);
+// #define PRINT(var) cout << #var << ": " << var << endl
+#define PRINT(var)
+  PRINT(T_delta);
+  /* to.y(), to.x() */
+  vec3 trans = T_delta.translation();
+  PRINT(trans);
+  double walk_angle = atan2(trans.y(), trans.x());
+  PRINT(walk_angle);
+
+  vector<Footprint> turn1 = turnInPlace(walk_angle, width, max_step_angle, from);
+  Footprint f1 = turn1.back();
+  turn1.pop_back();
+  PRINT(f1);
+
+  double walk_length = trans.norm();
+  PRINT(walk_length);
+  vector<Footprint> turn2 = walkLine(walk_length, width, max_step_length, f1);
+  Footprint f2 = turn2.back();
+  turn2.pop_back();
+  PRINT(f2);
+
+  PRINT(to.theta());
+  vector<Footprint> turn3 = turnInPlace(to.theta(), width, max_step_angle, f2);
+  PRINT(turn3.back());
+
+  vector<Footprint> total = turn1;
+  total.insert(total.end(), turn2.begin(), turn2.end());
+  total.insert(total.end(), turn3.begin(), turn3.end());
+  return total;
 }
