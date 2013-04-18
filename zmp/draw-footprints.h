@@ -35,13 +35,15 @@ std::vector<Footprint> sampleFootprints(int numPrints)
  * \param [in] foot_width Sets the width of the drawn foot's bounding box. The
  * height is twice the width.
  */
-void drawFootprints(const std::vector<Footprint>& footprints, const double foot_width = 0.1)
+void drawFootprints(std::vector<Footprint> footprints, const double foot_width = 0.1)
 {
 	double foot_bounds[4][2] = {
 			{foot_width,foot_width/2},
 			{foot_width,-foot_width/2},
 			{-foot_width,-foot_width/2},
 			{-foot_width,foot_width/2},};
+
+  footprints.insert(footprints.begin(), footprints.front()); // A hack to make the first foot get drawn
 
 	for (int i = 0; i < (int)footprints.size(); i++)
 	{
@@ -58,8 +60,8 @@ void drawFootprints(const std::vector<Footprint>& footprints, const double foot_
 
 		// Transform into the foot's frame
 		glPushMatrix();
-		glTranslated(footprints[i].x(), footprints[i].y(), 0.0);
-		glRotated(-footprints[i].theta()*180/M_PI, 0.0, 0.0, 1.0); //in degrees ?!
+		glTranslated(footprints[i].x() +4, footprints[i].y() +2, 0.0); // I add some random offsets
+		glRotated(footprints[i].theta()*180/M_PI, 0.0, 0.0, 1.0); //in degrees ?!
 
 		// Draw the center of the foot
 		glBegin(GL_POINTS);
