@@ -3,7 +3,8 @@ add_library(hubozmp zmpwalkgenerator.cpp footprint.cpp gait-timer.cpp swing.cpp)
 
 add_gui_app(zmpdemo zmpdemo.cpp)
 add_executable(swingtest swing-test.cpp)
-add_executable(footprintdemo footprint-example.cpp)
+add_executable(footprint-gnuplot footprint-gnuplot.cpp)
+add_executable(footprint-opengl footprint-opengl.cpp)
 add_executable(gait-timer-test gait-timer-test.cpp)
 
 
@@ -14,7 +15,8 @@ if (${HAVE_HUBO_ACH})
 set(zmpdemo_libs ${zmpdemo_libs} ach)
 endif()
 
-target_link_libraries(zmpdemo ${zmpdemo_libs})
-target_link_libraries(footprintdemo ${zmpdemo_libs})
-target_link_libraries(swingtest ${zmpdemo_libs})
-target_link_libraries(gait-timer-test ${zmpdemo_libs})
+target_link_libraries(zmpdemo             ${zmpdemo_libs})
+target_link_libraries(footprint-gnuplot   ${zmpdemo_libs})
+target_link_libraries(footprint-opengl    ${zmpdemo_libs})
+target_link_libraries(swingtest           ${zmpdemo_libs})
+target_link_libraries(gait-timer-test     ${zmpdemo_libs})

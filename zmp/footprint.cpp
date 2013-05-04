@@ -19,16 +19,16 @@ Footprint::Footprint(double x, double y, double theta, bool is_left) {
     this->is_left = is_left;
 }
 
-double Footprint::x() const { return this->transform.translation().x(); } 
-double Footprint::y() const{ return this->transform.translation().y(); } 
+double Footprint::x() const { return this->transform.translation().x(); }
+double Footprint::y() const{ return this->transform.translation().y(); }
 double Footprint::theta() const {
     vec3 forward = this->transform.rotFwd() * vec3(1.0, 0.0, 0.0);
     return atan2(forward.y(), forward.x());
-} 
+}
 
 
 Footprint::Footprint(){
-    Footprint( 0.0, 0.0, 0.0, 0.0 );
+    Footprint( 0.0, 0.0, 0.0, false );
 }
 
 Transform3 Footprint::getTransform3() const {
@@ -40,6 +40,10 @@ void Footprint::setTransform3(Transform3 transform){
     this->transform = transform;
 }
 
+Transform3 Footprint::getMidTransform3(double width) const {
+  return getTransform3() * Transform3(quat(), vec3(0, is_left?-width:width, 0));
+}
+
 bool is_even(int i) {
     return (i%2) == 0;
 }
@@ -48,59 +52,16 @@ bool is_odd(int i) {
     return !is_even(i);
 }
 
-vector<Footprint> walkLine(double dist,
+vector<Footprint> walkLine(double distance,
                            double width,
                            double max_step_length,
-                           Footprint* init_left,
-                           Footprint* init_right,
-                           bool left_is_stance_foot) {
-    // FIXME: line should not start with two side-by-side steps
-
-    assert(dist > 0);
-    assert(width > 0);
-    assert(max_step_length > 0);
-    assert((left_is_stance_foot ? init_left : init_right)
-           && "The stance foot must not be null");
-    
-    // select stance foot, fill out transforms
-    Footprint* stance_foot;
-    if (left_is_stance_foot) stance_foot = init_left;
-    else stance_foot = init_right;
-    Transform3 T_line_to_world =
-        stance_foot->transform
-        * Transform3(quat(), vec3(0, left_is_stance_foot?-width:width, 0));
-
-    // find K, N, and L simple equation
-    const int K = int(ceil(dist/max_step_length) + 1e-10);
-    const double L = dist/K;
-    const int N = K+3;
-
-    // build result vector
-    vector<Footprint> result(N);
-
-    // Do all steps
-    for (int i = 0; i < N; i++) {
-        bool is_left = (is_even(i) == left_is_stance_foot);
-        double x = (i-1)*L;
-        double y = width * is_left ? width : -width;
-        result[i] = Footprint(x, y, 0, is_left);
-    }
-
-    result[1] = Footprint(0, result[1].y(), 0, result[1].is_left);
-    result[N-1] = Footprint(dist, result[N-1].y(), 0, result[N-1].is_left);
-    result[N-2] = Footprint(dist, result[N-2].y(), 0, result[N-2].is_left);
-
-    // run through results transforming them back into the original frame of reference
-    for(std::vector<Footprint>::iterator it = result.begin(); it < result.end(); it++) {
-        it->transform = T_line_to_world * it->transform;
-    }
-    result[0] = Footprint(*stance_foot);
-
-    for(std::vector<Footprint>::iterator it = result.begin(); it < result.end(); it++) {
-        std::cout << *it << std::endl;
-    }
-
-    return result;
+                           Footprint stance_foot) {
+    return walkCircle(1e13,
+                      distance,
+                      width,
+                      max_step_length,
+                      3.14,
+                      stance_foot);
 }
 
 vector<Footprint> walkCircle(double radius,
@@ -108,23 +69,18 @@ vector<Footprint> walkCircle(double radius,
                              double width,
                              double max_step_length,
                              double max_step_angle,
-                             Footprint* init_left,
-                             Footprint* init_right,
-                             bool left_is_stance_foot) {
+                             Footprint stance_foot) {
     assert(distance > 0);
     assert(width > 0);
     assert(max_step_length > 0);
     assert(max_step_angle >= -3.14159265359);
     assert(max_step_angle < 3.14159265359);
-    assert((left_is_stance_foot ? init_left : init_right)
-           && "The stance foot must not be null");
+
+    bool left_is_stance_foot = stance_foot.is_left;
 
     // select stance foot, fill out transforms
-    Footprint* stance_foot;
-    if (left_is_stance_foot) stance_foot = init_left;
-    else stance_foot = init_right;
     Transform3 T_circle_to_world =
-        stance_foot->transform
+        stance_foot.transform
         * Transform3(quat(), vec3(0, left_is_stance_foot?-width:width, 0));
 
     double alpha = distance / abs(radius);
@@ -132,7 +88,7 @@ vector<Footprint> walkCircle(double radius,
     int K_step_length = ceil(outer_dist / max_step_length);
     int K_angle = ceil(alpha / max_step_angle);
     int K = max(K_step_length, K_angle);
-    double dTheta = alpha/K * radius/(abs(radius));
+    double dTheta = alpha/K * (radius > 0 ? 1 : -1 );
 
 #ifdef DEBUG
     cout << "outer_dist IS " << outer_dist << endl;
@@ -190,8 +146,75 @@ vector<Footprint> walkCircle(double radius,
     for(std::vector<Footprint>::iterator it = result.begin(); it < result.end(); it++) {
         it->transform = T_circle_to_world * it->transform;
     }
-    result.insert(result.begin(), Footprint(*stance_foot));
+    result.insert(result.begin(), stance_foot);
 
     // return the result
     return result;
+}
+
+vector<Footprint> turnInPlace(
+                         double desired_angle, /// The desired angle
+                         double width, /// The desired angle
+                         double max_step_angle, /// The maximum HALF angle between successive steps
+                         Footprint from /// Where we start from. Note that this exact foot will be repeated in the output
+    )
+{
+  assert(max_step_angle >= -3.14159265359);
+  assert(max_step_angle <   3.14159265359);
+  assert(desired_angle >=  -3.14159265359);
+  assert(desired_angle <    3.14159265359);
+  assert(from.theta() >=   -3.14159265359);
+  assert(from.theta() <     3.14159265359);
+
+  double goal_angle = desired_angle-from.theta();
+  if(goal_angle >= 3.14159265359) goal_angle -= 3.14159265359;
+  else if( goal_angle < -3.14159265359) goal_angle -= 3.14159265359;
+  double eps = 1e-10;
+  return walkCircle(eps, eps*goal_angle, width, 1000, max_step_angle, from);
+}
+
+Transform3 compensate(double width, bool is_left) {
+  return Transform3(quat(), vec3(0, is_left?-width:width, 0));
+
+}
+
+vector<Footprint> walkTo(
+    double width, /// The maximum HALF angle between successive steps
+    double max_step_length, /// The maximum HALF allowed length the robot may step
+    double max_step_angle, /// The maximum HALF angle between successive steps
+    Footprint from, /// Where we start from. Note that this exact foot will be repeated in the output
+    Footprint to /// Where we should end at. Note that this exact foot will be repeated in the output
+    )
+{
+  /* double walk_angle = to. */
+  Transform3 T_delta = from.getMidTransform3(width).inverse() * to.getMidTransform3(width);
+// #define PRINT(var) cout << #var << ": " << var << endl
+#define PRINT(var)
+  PRINT(T_delta);
+  /* to.y(), to.x() */
+  vec3 trans = T_delta.translation();
+  PRINT(trans);
+  double walk_angle = atan2(trans.y(), trans.x());
+  PRINT(walk_angle);
+
+  vector<Footprint> turn1 = turnInPlace(walk_angle, width, max_step_angle, from);
+  Footprint f1 = turn1.back();
+  turn1.pop_back();
+  PRINT(f1);
+
+  double walk_length = trans.norm();
+  PRINT(walk_length);
+  vector<Footprint> turn2 = walkLine(walk_length, width, max_step_length, f1);
+  Footprint f2 = turn2.back();
+  turn2.pop_back();
+  PRINT(f2);
+
+  PRINT(to.theta());
+  vector<Footprint> turn3 = turnInPlace(to.theta(), width, max_step_angle, f2);
+  PRINT(turn3.back());
+
+  vector<Footprint> total = turn1;
+  total.insert(total.end(), turn2.begin(), turn2.end());
+  total.insert(total.end(), turn3.begin(), turn3.end());
+  return total;
 }
