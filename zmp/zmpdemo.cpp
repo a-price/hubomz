@@ -466,8 +466,8 @@ int main(int argc, char** argv) {
   double single_support_time = 0.70;
 
   size_t max_step_count = 4;
-  size_t end_steps = 5;
-  size_t start_steps = 4;
+//  size_t end_steps = 5;
+//  size_t start_steps = 4;
 
   double zmp_jerk_penalty = 1e-8; // jerk penalty on ZMP controller
 
@@ -662,8 +662,8 @@ int main(int argc, char** argv) {
     cur_y[1] = -footsep_y;
 
  
-   //for (size_t i=0; i<max_step_count; ++i) {// FIXME original
-   for (size_t i=0; i<max_step_count + end_steps; ++i) {
+   for (size_t i=0; i<max_step_count; ++i) {// FIXME original
+//   for (size_t i=0; i<max_step_count + end_steps; ++i) {
       bool is_left = i%2;
       if (walk_sideways && step_length < 0) { is_left = !is_left; }
       int swing = is_left ? 0 : 1;
@@ -671,7 +671,11 @@ int main(int argc, char** argv) {
       if (walk_sideways) {
 	cur_y[swing] -= step_length;
       } else {
-	//if (i + 1 == max_step_count) { FIXME original
+	if (i + 1 == max_step_count) { //FIXME original
+	  cur_x[swing] = cur_x[stance];
+	} else {
+	  cur_x[swing] = cur_x[stance] + 0.5*step_length;
+/*
 	if (i + 1 == max_step_count + end_steps) {
 	  cur_x[swing] = cur_x[stance]; // final step to bring feet together
 	} else if (i > max_step_count && i < max_step_count + end_steps - 1) { // first time i will be max_step_count
@@ -680,7 +684,7 @@ int main(int argc, char** argv) {
         cur_x[swing] = cur_x[stance] + (0.5/(double)start_steps) * (double)(i+1) * step_length;
     } else {
 	  cur_x[swing] = cur_x[stance] + 0.5*step_length; // all steps up to step "max_step_count"
-	}
+*/	}
       }
       footprints.push_back(Footprint(cur_x[swing], cur_y[swing], 0, is_left));
     }
@@ -690,8 +694,10 @@ int main(int argc, char** argv) {
   }
   }
 
-  if (footprints.size() > max_step_count + end_steps) {
-    footprints.resize(max_step_count + end_steps);
+  if (footprints.size() > max_step_count) {
+    footprints.resize(max_step_count);
+//  if (footprints.size() > max_step_count + end_steps) {
+//    footprints.resize(max_step_count + end_steps);
   }
 
   //////////////////////////////////////////////////////////////////////
