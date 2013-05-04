@@ -4,9 +4,22 @@
 #include <mzcommon/MzGlutApp.h>
 #include <mzcommon/TimeUtil.h>
 #include <getopt.h>
+// for keyboard interrupt
+#include <termio.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <stdlib.h>
 
 #include "zmpwalkgenerator.h"
 #include "footprint.h"
+
+static int tty_unbuffered(int);     
+static void tty_atexit(void);
+static int tty_reset(int);
+static void keyboard_init();
+static struct termios save_termios;
+static int  ttysavefd = -1;
 
 using namespace fakerave;
 
@@ -129,7 +142,7 @@ public:
       }
     }
 
-    std::cerr << "current index: " << cur_index << "/" << traj.size() << ", stance=" << cur.stance << "\n";  
+//    std::cerr << "current index: " << cur_index << "/" << traj.size() << ", stance=" << cur.stance << "\n";  
     
   }
 
@@ -352,7 +365,7 @@ void usage(std::ostream& ostr) {
     "\n"
     "  -g, --show-gui                    Show a GUI after computing trajectories.\n"
     "  -A, --use-ach                     Send trajectory via ACH after computing.\n"
-    "  -I, --ik-errors                   IK error handling: strict/sloppy\n"
+    "  -I, --ik-errors                   IK error handling: strict/permissive/sloppy\n"
     "  -w, --walk-type                   Set type: canned/line/circle\n"
     "  -D, --walk-distance               Set maximum distance to walk\n"
     "  -r, --walk-circle-radius          Set radius for circle walking\n"
@@ -470,6 +483,7 @@ int main(int argc, char** argv) {
 //  size_t start_steps = 4;
 
   double zmp_jerk_penalty = 1e-8; // jerk penalty on ZMP controller
+  size_t curTrajNumber = 0; // current trajectory number
 
   ZMPWalkGenerator::ik_error_sensitivity ik_sense = ZMPWalkGenerator::ik_strict;
 
@@ -551,6 +565,52 @@ int main(int argc, char** argv) {
 
   HuboPlus hplus(hubofile);
 
+  //redirectSigs();
+
+  // initialize keyboard interrupt
+  keyboard_init();
+  char c;
+
+  // main loop
+  while(true)
+  {
+    curTrajNumber++;
+
+    // check for next input command
+    while(c != 'i' && c != 'k' && c != 'j' && c != 'l')
+    {
+      if ( read(STDIN_FILENO, &c, 1) == 1)
+      {
+        switch (c)
+        {
+            case 'i':
+                // walk forward
+                std::cout << "pressed the " << c << " key\n";
+                walk_sideways = false;
+                step_length = abs(step_length);
+                break;
+            case 'k':
+                // walk backwards
+                std::cout << "pressed the " << c << " key\n";
+                walk_sideways = false;
+                step_length = -abs(step_length);
+                break;
+            case 'j':
+                // sidestep right
+                std::cout << "pressed the " << c << " key\n";
+                walk_sideways = true;
+                step_length = abs(step_length);
+                break;
+            case 'l':
+                // sidestep left
+                std::cout << "pressed the " << c << " key\n";
+                walk_sideways = true;
+                step_length = -abs(step_length);
+                break;
+        }
+      }
+    }
+    c = '`';
 
   //////////////////////////////////////////////////////////////////////
   // build initial state
@@ -665,12 +725,12 @@ int main(int argc, char** argv) {
       int swing = is_left ? 0 : 1;
       int stance = 1-swing;
       if (walk_sideways) {
-	cur_y[swing] -= step_length;
+	    cur_y[swing] -= step_length;
       } else {
-	if (i + 1 == max_step_count) { //FIXME original
-	  cur_x[swing] = cur_x[stance];
-	} else {
-	  cur_x[swing] = cur_x[stance] + 0.5*step_length;
+	    if (i + 1 == max_step_count) { //FIXME original
+	      cur_x[swing] = cur_x[stance];
+	    } else {
+	      cur_x[swing] = cur_x[stance] + 0.5*step_length;
 /*
 	if (i + 1 == max_step_count + end_steps) {
 	  cur_x[swing] = cur_x[stance]; // final step to bring feet together
@@ -680,7 +740,7 @@ int main(int argc, char** argv) {
         cur_x[swing] = cur_x[stance] + (0.5/(double)start_steps) * (double)(i+1) * step_length;
     } else {
 	  cur_x[swing] = cur_x[stance] + 0.5*step_length; // all steps up to step "max_step_count"
-*/	}
+*/	    }
       }
       footprints.push_back(Footprint(cur_x[swing], cur_y[swing], 0, is_left));
     }
@@ -734,6 +794,7 @@ int main(int argc, char** argv) {
       N = (int)walker.traj.size();
 
     trajectory.count = N;
+    trajectory.trajNumber = curTrajNumber; 
     for(int i=0; i<N; i++)
       memcpy( &(trajectory.traj[i]), &(walker.traj[i]), sizeof(zmp_traj_element_t) );
 
@@ -751,10 +812,70 @@ int main(int argc, char** argv) {
 
   }
 
-
+  }
   return 0;
 }
 
+static int
+tty_unbuffered(int fd)      /* put terminal into a raw mode */
+{
+    struct termios  buf;
+
+    if (tcgetattr(fd, &buf) < 0)
+        return(-1);
+        
+    save_termios = buf; /* structure copy */
+
+    /* echo off, canonical mode off */
+    buf.c_lflag &= ~(ECHO | ICANON);
+
+    /* 1 byte at a time, no timer */
+    buf.c_cc[VMIN] = 1;
+    buf.c_cc[VTIME] = 0;
+    if (tcsetattr(fd, TCSAFLUSH, &buf) < 0)
+        return(-1);
+
+    ttysavefd = fd;
+    return(0);
+}
+
+static int
+tty_reset(int fd)       /* restore terminal's mode */
+{
+    if (tcsetattr(fd, TCSAFLUSH, &save_termios) < 0)
+        return(-1);
+    return(0);
+}
+
+static void
+tty_atexit(void)        /* can be set up by atexit(tty_atexit) */
+{
+    if (ttysavefd >= 0)
+        tty_reset(ttysavefd);
+}
+
+static void
+keyboard_init()
+{
+   /* make stdin unbuffered */
+    if (tty_unbuffered(STDIN_FILENO) < 0) {
+        std::cout << "Set tty unbuffered error" << std::endl;
+        exit(1);
+    }
+
+    atexit(tty_atexit);
+
+    /* nonblock I/O */
+    int flags;
+    if ( (flags = fcntl(STDIN_FILENO, F_GETFL, 0)) == 1) {
+        perror("fcntl get flag error");
+        exit(1);
+    }
+    if (fcntl(STDIN_FILENO, F_SETFL, flags | O_NONBLOCK) == -1) {
+        perror("fcntl set flag error");
+        exit(1);
+    }
+}
 
 // Local Variables:
 // c-basic-offset: 2
