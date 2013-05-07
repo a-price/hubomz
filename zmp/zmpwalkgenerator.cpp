@@ -5,32 +5,32 @@
 #include "swing.h"
 
 ZMPWalkGenerator::ZMPWalkGenerator(HuboPlus& _hplus,
-				   ik_error_sensitivity ik_sense,
+                				   ik_error_sensitivity ik_sense,
                                    double com_height,
                                    double zmp_R,
-				   double zmpoff_x,
-				   double zmpoff_y,
+				                   double zmpoff_x,
+				                   double zmpoff_y,
                                    double com_ik_angle_weight,
                                    double min_single_support_time,
                                    double min_double_support_time,
                                    double walk_startup_time,
                                    double walk_shutdown_time,
                                    double step_height,
-				   double lookahead_time) :
-    hplus(_hplus),
-    ik_sense(ik_sense),
-    com_height(com_height),
-    zmp_R(zmp_R),
-    zmpoff_x(zmpoff_x),
-    zmpoff_y(zmpoff_y),
-    com_ik_angle_weight(com_ik_angle_weight),
-    min_single_support_time(min_single_support_time),
-    min_double_support_time(min_double_support_time),
-    walk_startup_time(walk_startup_time),
-    walk_shutdown_time(walk_shutdown_time),
-    step_height(step_height),
-    lookahead_time(lookahead_time),
-    haveInitContext(false)
+				                   double lookahead_time) :
+                                   hplus(_hplus),
+                                   ik_sense(ik_sense),
+                                   com_height(com_height),
+                                   zmp_R(zmp_R),
+                                   zmpoff_x(zmpoff_x),
+                                   zmpoff_y(zmpoff_y),
+                                   com_ik_angle_weight(com_ik_angle_weight),
+                                   min_single_support_time(min_single_support_time),
+                                   min_double_support_time(min_double_support_time),
+                                   walk_startup_time(walk_startup_time),
+                                   walk_shutdown_time(walk_shutdown_time),
+                                   step_height(step_height),
+                                   lookahead_time(lookahead_time),
+                                   haveInitContext(false)
 {
 }
 

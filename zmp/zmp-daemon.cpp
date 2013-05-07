@@ -41,268 +41,6 @@ const stance_t next_stance_table[4] = {
   DOUBLE_LEFT
 };
 
-
-class ZmpDemo: public MzGlutApp {
-public:
-
-  HuboPlus& hplus;
-  KinBody& kbody;
-
-  HuboPlus::KState state;
-  vec3 forces[2];
-  vec3 torques[2];
-  vec3 actualCom;
-  vec3 actualComVel;
-  vec3 actualComAcc;
-
-  Transform3Array xforms;
-
-  const TrajVector& traj;
-  
-  size_t cur_index;
-
-  int stance_foot;
-  Transform3 stance_foot_xform;
-  
-  GLUquadric* quadric;
-
-  bool animating;
-
-  ZmpDemo(int argc, char** argv, HuboPlus& h, const TrajVector& t):
-    MzGlutApp(argc, argv, GLUT_DOUBLE | GLUT_DEPTH | GLUT_RGB | GLUT_MULTISAMPLE),
-    hplus(h),
-    kbody(h.kbody),
-    traj(t),
-    cur_index(-1)
-
-  {
-
-    initWindowSize(640, 480);
-    createWindow("Hubo Demo");
-    setupBasicLight(vec4f(1,1,1,0));
-
-    double bz = 0.85;
-
-    camera.aim(vec3f(3, 0, bz),
-               vec3f(0, 0, bz),
-               vec3f(0, 0, 1));
-
-    camera.setPerspective();
-
-    camera.setRotateType(GlCamera::ROTATE_2_AXIS);
-
-    camera.setHomePosition();
-
-    quadric = gluNewQuadric();
-
-    animating = false;
-
-    kbody.compileDisplayLists();
-
-    state.jvalues.resize(kbody.joints.size());
-
-    setTimer(40, 0);
-    
-    resetCurrent();
-
-  }
-
-  void resetCurrent() {
-
-    cur_index = 0; 
-    stance_foot_xform = Transform3();
-    stance_foot = stance_foot_table[traj[0].stance];
-    setStateFromTraj(traj[0]);
-
-
-  }
-    
-  
-  
-  void setStateFromTraj(const zmp_traj_element_t& cur) {
-    
-    for (size_t hi=0; hi<hplus.huboJointOrder.size(); ++hi) {
-      size_t ji = hplus.huboJointOrder[hi];
-      if (ji != size_t(-1)) {
-      	state.jvalues[ji] = cur.angles[hi];
-      }
-    }
-    
-    kbody.transforms(state.jvalues, xforms);
-
-    Transform3 foot_fk = kbody.manipulatorFK(xforms, stance_foot);
-    state.setXform(stance_foot_xform * foot_fk.inverse());
-    
-    for (int a=0; a<3; ++a) {
-      actualCom[a] = cur.com[a][0];
-      actualComVel[a] = cur.com[a][1];
-      actualComAcc[a] = cur.com[a][2];
-      for (int f=0; f<2; ++f) {
-	forces[1-f][a] = cur.forces[f][a];
-	torques[1-f][a] = cur.torque[f][a]; // TODO: FIXME: pluralization WTF?
-      }
-    }
-
-//    std::cerr << "current index: " << cur_index << "/" << traj.size() << ", stance=" << cur.stance << "\n";  
-    
-  }
-
-  virtual void deltaCurrent(int delta) {
-
-    int dmin = -cur_index;
-    int dmax = traj.size()-1-cur_index;
-    delta = std::max(dmin, std::min(delta, dmax));
-    if (!delta) { return; }
-
-    int dd = delta < 0 ? -1 : 1;
-    delta *= dd;
-    assert(delta > 0);
-
-    for (int i=0; i<delta; ++i) {
-
-      cur_index += dd;
-
-      // see if the stance foot has swapped
-      int new_stance_foot = stance_foot_table[traj[cur_index].stance];
-
-      if (new_stance_foot != stance_foot) {
-        stance_foot = new_stance_foot;
-        stance_foot_xform = state.xform() * kbody.manipulatorFK(xforms, stance_foot);
-      }
-
-      setStateFromTraj(traj[cur_index]);
-
-    }
-
-  }
-
-  virtual void display() {
-
-    MzGlutApp::display();
-
-    glMatrixMode(GL_MODELVIEW);
-
-    glColor3ub(0, 127, 127);
-    glNormal3f(0, 0, 1);
-    glBegin(GL_LINES);
-    double s = 0.5;
-    double n = 10;
-    double x = s*n;
-    for (int i=-n; i<=n; ++i) {
-      glVertex2d(x, i*s);
-      glVertex2d(-x, i*s);
-      glVertex2d(i*s, x);
-      glVertex2d(i*s, -x);
-    }
-    glEnd();
-
-    glPushMatrix();
-    glstuff::mult_transform(state.xform());
-
-    hplus.render(xforms);
-    glClear(GL_DEPTH_BUFFER_BIT);
-
-    hplus.kbody.renderSkeleton(xforms, quadric);
-
-    // Force and torque arrows
-    for (int f=0; f<2; ++f) {
-      Transform3 fk = hplus.kbody.manipulatorFK(xforms, f);
-      glPushMatrix();
-      glstuff::mult_transform(fk);
-      glTranslated(0, 0, hplus.footAnkleDist);
-      double fscl = 1.0/400;
-      glColor3ub(255,255,0);
-      glstuff::draw_arrow(quadric, vec3(0), fscl*forces[f], 0.02);
-      glColor3ub(255,128,0);
-      glstuff::draw_arrow(quadric, vec3(0), fscl*torques[f], 0.02);
-
-      glPopMatrix();
-    }
-
-    glPopMatrix();
-
-
-    glPushMatrix();
-    glstuff::mult_transform(stance_foot_xform);
-
-    // CoM sphere
-    glColor3ub(255, 0, 255);
-    glPushMatrix();
-    glTranslated(actualCom[0], actualCom[1], actualCom[2]+hplus.footAnkleDist);
-    gluSphere(quadric, 0.05, 32, 24);
-    glPopMatrix();
-
-    // CoM projection disk
-    glPushMatrix();
-    glTranslated(actualCom[0], actualCom[1], 0.01);
-    glColor3ub(127, 0, 127);
-    gluDisk(quadric, 0, 0.05, 32, 1);
-    glRotated(180, 1, 0, 0);
-    gluDisk(quadric, 0, 0.05, 32, 1);
-    glPopMatrix();
-
-    // Acceleration arrow
-    double fscl = 1.0/2.0;
-    glPushMatrix();
-    glTranslated(actualCom[0], actualCom[1], actualCom[2]+hplus.footAnkleDist);
-    glColor3ub(0, 255, 0);
-    glstuff::draw_arrow(quadric, vec3(0), fscl*actualComAcc, 0.02);
-    glPopMatrix();
-    
-    
-    glPopMatrix();
-
-    glutSwapBuffers();
-
-  }
-
-  virtual void timer(int value) {
-
-    if (animating) {
-      if (cur_index+1 < traj.size()) { 
-	deltaCurrent(5);
-	glutPostRedisplay();
-      } else {
-	animating = false;
-      }
-    }
-
-    setTimer(40, 0);    
-
-  }
-
-  virtual void keyboard(unsigned char key, int x, int y) {
-    switch (key) {
-    case '-':
-      animating = false;
-      deltaCurrent(-1);
-      glutPostRedisplay();
-      break;
-    case '+':
-    case '=':
-      animating = false;
-      deltaCurrent(1);
-      glutPostRedisplay();
-      break;
-    case 'r':
-      animating = false;
-      resetCurrent();
-      glutPostRedisplay();
-      break;
-    case '\r':
-    case '\n':
-      animating = !animating;
-      break;
-    default: 
-      MzGlutApp::keyboard(key, x, y);
-    }
-
-
-    
-  }
-
-};
-
 /**
 * @function: validateCOMTraj(Eigen::MatrixXd& comX, Eigen::MatrixXd& comY) 
 * @brief: validation of COM output trajectory data
@@ -565,9 +303,11 @@ int main(int argc, char** argv) {
     exit(1); 
   }
 
+  // load in openRave hubo model
   HuboPlus hplus(hubofile);
 
-  //redirectSigs();
+  // redirect Ctrl-C signal and others
+  redirectSigs();
 
   // initialize keyboard interrupt
   keyboard_init();
@@ -579,7 +319,7 @@ int main(int argc, char** argv) {
     curTrajNumber++;
 
     // check for next input command
-    while(c != 'i' && c != 'k' && c != 'j' && c != 'l')
+    while(c != 'i' && c != 'm' && c != 'j' && c != 'l' && c != 'k')
     {
       if ( read(STDIN_FILENO, &c, 1) == 1)
       {
@@ -587,28 +327,31 @@ int main(int argc, char** argv) {
         {
             case 'i':
                 // walk forward
-                std::cout << "pressed the " << c << " key\n";
+                std::cout << "walking forwards\n";
                 walk_sideways = false;
                 step_length = abs(step_length);
                 break;
-            case 'k':
+            case 'm':
                 // walk backwards
-                std::cout << "pressed the " << c << " key\n";
+                std::cout << "walking backwards\n";
                 walk_sideways = false;
                 step_length = -abs(step_length);
                 break;
             case 'j':
                 // sidestep right
-                std::cout << "pressed the " << c << " key\n";
+                std::cout << "sidestepping right\n";
                 walk_sideways = true;
                 step_length = abs(sidestep_length);
                 break;
             case 'l':
                 // sidestep left
-                std::cout << "pressed the " << c << " key\n";
+                std::cout << "sidestepping left\n";
                 walk_sideways = true;
                 step_length = -abs(sidestep_length);
                 break;
+            case 'k':
+                // walk to standstill
+                std::cout << "walking to a stop\n";
         }
       }
     }
@@ -619,19 +362,18 @@ int main(int argc, char** argv) {
 
   // the actual state
   ZMPWalkGenerator walker(hplus,
-			  ik_sense,
+			                    ik_sense,
                           com_height,
                           zmp_jerk_penalty,
-			  zmpoff_x,
-			  zmpoff_y,
+			                    zmpoff_x,
+			                    zmpoff_y,
                           com_ik_ascl,
                           single_support_time,
                           double_support_time,
                           startup_time,
                           shutdown_time,
                           foot_liftoff_z,
-			  lookahead_time
-    );
+			                    lookahead_time);
   ZMPReferenceContext initContext;
 
   // helper variables and classes
@@ -805,14 +547,6 @@ int main(int argc, char** argv) {
   }
 
 #endif
-
-  if (show_gui) {
-
-    ZmpDemo demo(argc, argv, hplus, walker.traj);
-
-    demo.run();
-
-  }
 
   }
   return 0;
