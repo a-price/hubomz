@@ -463,6 +463,7 @@ int main(int argc, char** argv) {
   double foot_liftoff_z = 0.05; // foot liftoff height
 
   double step_length = 0.05;
+  double sidestep_length = 0.01;
   bool walk_sideways = false;
 
   double com_height = 0.48; // height of COM above ANKLE
@@ -599,13 +600,13 @@ int main(int argc, char** argv) {
                 // sidestep right
                 std::cout << "pressed the " << c << " key\n";
                 walk_sideways = true;
-                step_length = abs(step_length);
+                step_length = abs(sidestep_length);
                 break;
             case 'l':
                 // sidestep left
                 std::cout << "pressed the " << c << " key\n";
                 walk_sideways = true;
-                step_length = -abs(step_length);
+                step_length = -abs(sidestep_length);
                 break;
         }
       }
