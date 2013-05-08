@@ -356,6 +356,9 @@ int main(int argc, char** argv) {
 
   bool ready = false;
   bool keepWalking = false;
+  bool printStopped = false;
+  walkState_t walkState;
+
   // main loop
   while(true)
   {
@@ -381,6 +384,7 @@ int main(int argc, char** argv) {
                   step_length = abs(step_length);
                   prevKey = 'i';
                   ready = true;
+                  walkState = WALK_FORWARD;
                   break;
               case 'm':
                   // walk backwards
@@ -389,6 +393,7 @@ int main(int argc, char** argv) {
                   step_length = -abs(step_length);
                   prevKey = 'm';
                   ready = true;
+                  walkState = WALK_BACKWARD;
                   break;
               case 'j':
                   // sidestep right
@@ -397,6 +402,7 @@ int main(int argc, char** argv) {
                   step_length = abs(sidestep_length);
                   prevKey = 'j';
                   ready = true;
+                  walkState = SIDESTEP_LEFT;
                   break;
               case 'l':
                   // sidestep left
@@ -405,12 +411,14 @@ int main(int argc, char** argv) {
                   step_length = -abs(sidestep_length);
                   prevKey = 'l';
                   ready = true;
+                  walkState = SIDESTEP_RIGHT;
                   break;
               case 'k':
                   // walk to standstill
                   std::cout << "walking to a stop\n";
                   prevKey = 'k';
                   ready = true;
+                  walkState = STOP;
                   break;
           }
         }
@@ -424,10 +432,39 @@ int main(int argc, char** argv) {
       // else if a new key hasn't been pressed, but we've started walking
       else if(key == prevKey)
       {
-        std::cout << "continue walking\n";
+        switch(walkState)
+        {
+          case WALK_FORWARD:
+            std::cout << "still walking forward\n";
+            printStopped = true;
+            break;
+          case WALK_BACKWARD:
+            std::cout << "still walking forward\n";
+            printStopped = true;
+            break;
+          case SIDESTEP_LEFT:
+            std::cout << "still sidestepping left\n";
+            printStopped = true;
+            break;
+          case SIDESTEP_RIGHT:
+            std::cout << "still sidestepping right\n";
+            printStopped = true;
+            break;
+          case STOP:
+            if(printStopped == true)
+            {
+              printStopped = false;
+              std::cout << "stil stopped\n";
+            }
+            break;
+        }
         break;
       }
     }
+
+  // if we aren't stopping then continue with trajectory
+  if( walkState != STOP )
+  {
 
   // apply COM IK for init context
   walker.applyComIK(initContext);
@@ -563,7 +600,8 @@ int main(int argc, char** argv) {
       N = (int)walker.traj.size();
 
     trajectory.count = N;
-    trajectory.trajNumber = curTrajNumber; 
+    trajectory.trajNumber = curTrajNumber;
+    trajectory.walkState = walkState; 
     for(int i=0; i<N; i++)
       memcpy( &(trajectory.traj[i]), &(walker.traj[i]), sizeof(zmp_traj_element_t) );
 
@@ -573,6 +611,7 @@ int main(int argc, char** argv) {
 
 #endif
   std::cout << "\nCURRENT TRAJECTORY #: " << curTrajNumber << "\n\n";
+  }
   }
   return 0;
 }
