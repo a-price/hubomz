@@ -531,3 +531,9 @@ void ZMPWalkGenerator::refToTraj(const ZMPReferenceContext& cur_ref,
 
 
 }
+
+
+ZMPReferenceContext ZMPWalkGenerator::getNextInitContext()
+{
+  return ref.back();
+}

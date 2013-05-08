@@ -29,17 +29,6 @@ typedef std::vector< zmp_traj_element_t > TrajVector;
 size_t seconds_to_ticks(double s) {
   return size_t(round(s*TRAJ_FREQ_HZ));
 }
-/*TODO remove this
-*/
-const int stance_foot_table[4] = { 0, 1, 0, 1 };
-const int swing_foot_table[4] = { -1, -1, 1, 0 };
-
-const stance_t next_stance_table[4] = {
-  SINGLE_LEFT,
-  SINGLE_RIGHT,
-  DOUBLE_RIGHT,
-  DOUBLE_LEFT
-};
 
 /**
 * @function: validateCOMTraj(Eigen::MatrixXd& comX, Eigen::MatrixXd& comY) 
@@ -307,58 +296,12 @@ int main(int argc, char** argv) {
   HuboPlus hplus(hubofile);
 
   // redirect Ctrl-C signal and others
-  redirectSigs();
+//  redirectSigs();
 
   // initialize keyboard interrupt
   keyboard_init();
-  char c;
-
-  // main loop
-  while(true)
-  {
-    curTrajNumber++;
-
-    // check for next input command
-    while(c != 'i' && c != 'm' && c != 'j' && c != 'l' && c != 'k')
-    {
-      if ( read(STDIN_FILENO, &c, 1) == 1)
-      {
-        switch (c)
-        {
-            case 'i':
-                // walk forward
-                std::cout << "walking forwards\n";
-                walk_sideways = false;
-                step_length = abs(step_length);
-                break;
-            case 'm':
-                // walk backwards
-                std::cout << "walking backwards\n";
-                walk_sideways = false;
-                step_length = -abs(step_length);
-                break;
-            case 'j':
-                // sidestep right
-                std::cout << "sidestepping right\n";
-                walk_sideways = true;
-                step_length = abs(sidestep_length);
-                break;
-            case 'l':
-                // sidestep left
-                std::cout << "sidestepping left\n";
-                walk_sideways = true;
-                step_length = -abs(sidestep_length);
-                break;
-            case 'k':
-                // walk to standstill
-                std::cout << "walking to a stop\n";
-        }
-      }
-    }
-    c = '`';
-
-  //////////////////////////////////////////////////////////////////////
-  // build initial state
+  char key = '0';
+  char prevKey = '1';
 
   // the actual state
   ZMPWalkGenerator walker(hplus,
@@ -374,6 +317,10 @@ int main(int argc, char** argv) {
                           shutdown_time,
                           foot_liftoff_z,
 			                    lookahead_time);
+
+  // BUILD INITIAL STATE
+
+  // initial ZMPReferenceContext that's used for each consecutive trajectory
   ZMPReferenceContext initContext;
 
   // helper variables and classes
@@ -407,6 +354,81 @@ int main(int argc, char** argv) {
   initContext.pX = 0.0;
   initContext.pY = 0.0;
 
+  bool ready = false;
+  bool keepWalking = false;
+  // main loop
+  while(true)
+  {
+    curTrajNumber++;
+    ready = false;
+
+    // check for next input command
+    while(ready == false)
+    {
+      // see if key has been pressed
+      if( read(STDIN_FILENO, &key, 1) == 1 )
+      {
+        std::cout << "Reading keyboard input\n";
+        // if user pressed a new key, then process walk command
+        if( key != prevKey )
+        {
+          switch (key)
+          {
+              case 'i':
+                  // walk forward
+                  std::cout << "walking forwards\n";
+                  walk_sideways = false;
+                  step_length = abs(step_length);
+                  prevKey = 'i';
+                  ready = true;
+                  break;
+              case 'm':
+                  // walk backwards
+                  std::cout << "walking backwards\n";
+                  walk_sideways = false;
+                  step_length = -abs(step_length);
+                  prevKey = 'm';
+                  ready = true;
+                  break;
+              case 'j':
+                  // sidestep right
+                  std::cout << "sidestepping right\n";
+                  walk_sideways = true;
+                  step_length = abs(sidestep_length);
+                  prevKey = 'j';
+                  ready = true;
+                  break;
+              case 'l':
+                  // sidestep left
+                  std::cout << "sidestepping left\n";
+                  walk_sideways = true;
+                  step_length = -abs(sidestep_length);
+                  prevKey = 'l';
+                  ready = true;
+                  break;
+              case 'k':
+                  // walk to standstill
+                  std::cout << "walking to a stop\n";
+                  prevKey = 'k';
+                  ready = true;
+                  break;
+          }
+        }
+        // if no new key was pressed keep doing what we were doing before
+        else
+        {
+          std::cout << "continue whatever we were doing before\n";
+          break;
+        }
+      }
+      // else if a new key hasn't been pressed, but we've started walking
+      else if(key == prevKey)
+      {
+        std::cout << "continue walking\n";
+        break;
+      }
+    }
+
   // apply COM IK for init context
   walker.applyComIK(initContext);
 
@@ -415,9 +437,7 @@ int main(int argc, char** argv) {
   walker.refToTraj(initContext, walker.traj.back());
   */
 
-
   walker.initialize(initContext);
-
   
   //////////////////////////////////////////////////////////////////////
   // build ourselves some footprints
@@ -495,7 +515,7 @@ int main(int argc, char** argv) {
   }
 
   if (footprints.size() > max_step_count) {
-    footprints.resize(max_step_count);
+   footprints.resize(max_step_count);
 //  if (footprints.size() > max_step_count + end_steps) {
 //    footprints.resize(max_step_count + end_steps);
   }
@@ -503,22 +523,27 @@ int main(int argc, char** argv) {
   //////////////////////////////////////////////////////////////////////
   // and then build up the walker
 
-
+  // add startup ticks where the zmp is stationary
   walker.stayDogStay(startup_time * TRAJ_FREQ_HZ);
 
-
+  // add footsteps to ref, which is a ZMPReferenceContext,
+  // which includes swingfoot trajectory, set next traj's initContext
+  size_t footprintIndex=1;
   for(std::vector<Footprint>::iterator it = footprints.begin(); it != footprints.end(); it++) {
+    if( footprintIndex == footprints.size() )
+    {
+      initContext = walker.getNextInitContext();
+    }
     walker.addFootstep(*it);
+    footprintIndex++;
   }
 
-
-
+  // add shutdown ticks where the zmp is stationary
   walker.stayDogStay(shutdown_time * TRAJ_FREQ_HZ);
   
 
   //////////////////////////////////////////////////////////////////////
   // have the walker run preview control and pass on the output
-
   walker.bakeIt();
   // validateOutputData(traj);
 
@@ -547,7 +572,7 @@ int main(int argc, char** argv) {
   }
 
 #endif
-
+  std::cout << "\nCURRENT TRAJECTORY #: " << curTrajNumber << "\n\n";
   }
   return 0;
 }

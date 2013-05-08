@@ -157,6 +157,14 @@ public:
      * @return: void
      */
     void dumpTraj();
+
+    /**
+     * @function: getNextInitContext()
+     * @brief: grabs the intitial ZMPReferenceContext
+     * for the next trajectory, which is at the end
+     * of the last step
+    */
+    ZMPReferenceContext getNextInitContext();
 };
 
 // Local Variables:
