@@ -83,6 +83,7 @@ vector<Footprint> walkCircle(double radius,
         stance_foot.transform
         * Transform3(quat(), vec3(0, left_is_stance_foot?-width:width, 0));
 
+    // alpha = angle of arc to walk
     double alpha = distance / abs(radius);
     double outer_dist = (abs(radius) + width) * alpha;
     int K_step_length = ceil(outer_dist / max_step_length);
@@ -146,8 +147,10 @@ vector<Footprint> walkCircle(double radius,
     for(std::vector<Footprint>::iterator it = result.begin(); it < result.end(); it++) {
         it->transform = T_circle_to_world * it->transform;
     }
-    result.insert(result.begin(), stance_foot);
 
+    // make first step just in place
+    //result.insert(result.begin(), stance_foot);
+    std::cout << "# of Footsteps: " << result.size() << std::endl;
     // return the result
     return result;
 }

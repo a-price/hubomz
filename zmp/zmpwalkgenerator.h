@@ -78,6 +78,7 @@ public:
 
     // array of all zmp data structure for trajectory
     std::vector<ZMPReferenceContext> ref;
+    size_t startTick;
 
     // array fullbody joint trajectory at each tick in previous and current traj 
     std::vector<zmp_traj_element_t> traj;
@@ -165,6 +166,14 @@ public:
      * of the last step
     */
     ZMPReferenceContext getNextInitContext();
+
+    /**
+     * @function: getStartTick()
+     * @brief: gets the startTick for the next trajectory
+     * @precondition: need to have just called getNextInitContext()
+     * @return: returns the size_t startTick
+    */
+    size_t getStartTick();
 };
 
 // Local Variables:
