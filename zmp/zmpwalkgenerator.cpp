@@ -271,13 +271,10 @@ void ZMPWalkGenerator::bakeIt() {
     runZMPPreview();
     runCOMIK();
     dumpTraj();
-
     // TODO: for thinkin ahead
     //initContext = ref[first_step_index];
-
     ref.clear();
     haveInitContext = false;
-
 }
 
 /** @function: runZMPPreview()

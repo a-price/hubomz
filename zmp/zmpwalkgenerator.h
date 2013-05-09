@@ -25,8 +25,6 @@ public:
     HuboPlus::KState state; // complete state of the robot
 };
 
-
-
 class ZMPWalkGenerator {
 public:
     

@@ -57,7 +57,17 @@ typedef struct zmp_traj {
   walkTransition_t walkTransition;
 } zmp_traj_t;
 
+typedef struct zmpgui_traj {
+  std::vector<zmp_traj_element_t> traj;
+  size_t count;
+  size_t trajNumber;
+  size_t startTick;
+  walkState_t walkState;
+  walkTransition_t walkTransition;
+} zmpgui_traj_t
+
 #define HUBO_CHAN_ZMP_TRAJ_NAME "hubo-zmp-traj"
+#define HUBO_CHAN_ZMP_GUI_NAME "hubo-zmp-gui"
 
 #endif
 

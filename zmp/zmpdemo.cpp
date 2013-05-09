@@ -762,7 +762,7 @@ int main(int argc, char** argv) {
   // and then build up the walker
 
 
-  walker.stayDogStay(startup_time * TRAJ_FREQ_HZ);
+//  walker.stayDogStay(startup_time * TRAJ_FREQ_HZ);
 
 
   for(std::vector<Footprint>::iterator it = footprints.begin(); it != footprints.end(); it++) {
