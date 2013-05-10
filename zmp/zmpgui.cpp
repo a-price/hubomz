@@ -70,7 +70,7 @@ public:
   {
 
     initWindowSize(640, 480);
-    createWindow("Hubo Demo");
+    createWindow("Hubo ZMP Walking");
     setupBasicLight(vec4f(1,1,1,0));
 
     double bz = 0.85;
@@ -99,20 +99,42 @@ public:
 
   }
 
+  virtual void checkForNewTraj() {
+    ach_channel_t zmp_chan;
+    ach_open( &zmp_chan, HUBO_CHAN_ZMP_TRAJ_NAME, NULL );
+    zmp_traj_t curTrajectory, nextTrajectory;
+    zmpgui_traj_t curGuiTrajectory, nextGuiTrajectory;
+
+    memset( &curTrajectory, 0, sizeof(curTrajectory) );
+    memset( &nextTrajectory, 0, sizeof(nextTrajectory) );
+
+    memset( &curGuiTrajectory, 0, sizeof(curGuiTrajectory) );
+    memset( &nextGuiTrajectory, 0, sizeof(nextGuiTrajectory) );
+    size_t fs;
+
+    ach_get( &zmp_chan, &curTrajectory, sizeof(curTrajectory), &fs, NULL, ACH_O_LAST );
+
+    std::cout << "Got trajectory!\n";
+
+    // convert c-array into std::vector
+    int N = sizeof(curTrajectory.traj)/sizeof(curTrajectory.traj[0]);
+    for(int i=0; i<N; i++)
+      curGuiTrajectory.traj.push_back(curTrajectory.traj[i]);
+  }
+
+  // set state to initial trajectory tick joint values
   void resetCurrent() {
 
     cur_index = 0; 
     stance_foot_xform = Transform3();
     stance_foot = stance_foot_table[traj[0].stance];
     setStateFromTraj(traj[0]);
-
-
   }
     
   
   
   void setStateFromTraj(const zmp_traj_element_t& cur) {
-    
+
     for (size_t hi=0; hi<hplus.huboJointOrder.size(); ++hi) {
       size_t ji = hplus.huboJointOrder[hi];
       if (ji != size_t(-1)) {
@@ -134,9 +156,7 @@ public:
 	torques[1-f][a] = cur.torque[f][a]; // TODO: FIXME: pluralization WTF?
       }
     }
-
 //    std::cerr << "current index: " << cur_index << "/" << traj.size() << ", stance=" << cur.stance << "\n";  
-    
   }
 
   virtual void deltaCurrent(int delta) {
@@ -149,7 +169,7 @@ public:
     int dd = delta < 0 ? -1 : 1;
     delta *= dd;
     assert(delta > 0);
-
+    std::cout << "entering forloop. delta = " << delta << std::endl;
     for (int i=0; i<delta; ++i) {
 
       cur_index += dd;
@@ -161,11 +181,9 @@ public:
         stance_foot = new_stance_foot;
         stance_foot_xform = state.xform() * kbody.manipulatorFK(xforms, stance_foot);
       }
-
+      std::cout << "cur_index = " << cur_index << std::endl;
       setStateFromTraj(traj[cur_index]);
-
     }
-
   }
 
   virtual void display() {
@@ -213,7 +231,6 @@ public:
 
     glPopMatrix();
 
-
     glPushMatrix();
     glstuff::mult_transform(stance_foot_xform);
 
@@ -241,29 +258,27 @@ public:
     glstuff::draw_arrow(quadric, vec3(0), fscl*actualComAcc, 0.02);
     glPopMatrix();
     
-    
     glPopMatrix();
 
     glutSwapBuffers();
-
   }
 
   virtual void timer(int value) {
 
     if (animating) {
       if (cur_index+1 < traj.size()) { 
-	deltaCurrent(5);
-	glutPostRedisplay();
+	    deltaCurrent(5); // this set the display speed
+	    glutPostRedisplay();
       } else {
-	animating = false;
+	    animating = false;
       }
     }
 
     setTimer(40, 0);    
-
   }
 
   virtual void keyboard(unsigned char key, int x, int y) {
+
     switch (key) {
     case '-':
       animating = false;
@@ -288,11 +303,7 @@ public:
     default: 
       MzGlutApp::keyboard(key, x, y);
     }
-
-
-    
   }
-
 };
 
 /**
@@ -368,9 +379,8 @@ int main(int argc, char** argv)
   size_t fs;
 
   std::cout << "Getting trajectory from ach\n";
-  std::cout << "count: " << curTrajectory.count << std::endl;
-  //while(curTrajectory.count <= 0)
-  ach_get( &zmp_chan, &curTrajectory, sizeof(curTrajectory), &fs, NULL, ACH_O_WAIT );
+  while(curTrajectory.count <= 0)
+    ach_get( &zmp_chan, &curTrajectory, sizeof(curTrajectory), &fs, NULL, ACH_O_WAIT );
 
   std::cout << "Got trajectory!\n";
 
@@ -379,12 +389,11 @@ int main(int argc, char** argv)
   for(int i=0; i<N; i++)
     curGuiTrajectory.traj.push_back(curTrajectory.traj[i]);
 
-  std::cout << "constructing demo\n";
   ZmpDemo demo(argc, argv, hplus, curGuiTrajectory.traj);
 
   std::cout << "running demo\n";
   demo.run();
-
+  std::cout << "finish\n";
   return 0;
 }
 

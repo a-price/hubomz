@@ -10,7 +10,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <stdlib.h>
-#include <assert.h>
 #include "zmpwalkgenerator.h"
 #include "footprint.h"
 
@@ -76,7 +75,7 @@ void validateOutputData(TrajVector& traj) {
       for (int j=0; j<HUBO_JOINT_COUNT; j++) {  
         jointVel = (traj[n+1].angles[j] - traj[n].angles[j])/dt;
         if (jointVel > jointVelTol) {
-          std::cerr << "change in joint " << j << "is larger than " << jointVelTol << "(" << jointVel << ")\n";
+          std::cerr << "change in joint " << jointNames[j] << " is larger than " << jointVelTol << "(" << jointVel << ")\n";
         }
         if (jointVel > maxJointVel) maxJointVel = jointVel;
       }
@@ -303,8 +302,8 @@ int main(int argc, char** argv)
   if (use_ach)
   {
     std::cout << "opening ach channel\n";
-    int r = ach_open( &zmp_chan, HUBO_CHAN_ZMP_TRAJ_NAME, NULL );
-    assert( ACH_OK == r );
+    ach_status r = ach_open( &zmp_chan, HUBO_CHAN_ZMP_TRAJ_NAME, NULL );
+    fprintf(stdout, "%s \n", ach_result_to_string(r));
   }
 
   // the actual state
@@ -624,8 +623,7 @@ int main(int argc, char** argv)
       //////////////////////////////////////////////////////////////////////
       // have the walker run preview control and pass on the output
       walker.bakeIt();
-      // validateOutputData(traj);
-
+      //validateOutputData(walker.traj);
 
       if (use_ach) {
         std::cout << "sending traj over ach\n";
@@ -650,37 +648,15 @@ int main(int argc, char** argv)
         trajectory.walkTransition = walkTransition;
         trajectory.startTick = startTick;
 
+
         // put each 
         for(int i=0; i<N; i++)
           memcpy( &(trajectory.traj[i]), &(walker.traj[i]), sizeof(zmp_traj_element_t) );
 
-        ach_put( &zmp_chan, &trajectory, sizeof(trajectory) );
+        ach_status r = ach_put( &zmp_chan, &trajectory, sizeof(trajectory) );
+        fprintf(stdout, "%s \n", ach_result_to_string(r));
         fprintf(stdout, "Message put\n");
-
-/*        //#############################
-        //### SEND ZMP_TRAJ TO GUI ####
-        //#############################
-
-        // clear guiTrajectory
-        memset( &guiTrajectory, 0, sizeof(guiTrajectory) );
-
-        // set variables for output to GUI
-        guiTrajectory.count = N;
-        guiTrajectory.trajNumber = curTrajNumber;
-        guiTrajectory.walkState = walkState; 
-        guiTrajectory.walkTransition = walkTransition;
-        guiTrajectory.startTick = startTick;
-
-        std::cout << "memcpying guiTrajectory\n";
-        // put each 
-        for(int i=0; i<N; i++)
-          memcpy( &(guiTrajectory.traj[i]), &(walker.traj[i]), sizeof(zmp_traj_element_t) );
-
-        std::cout << "putting guiTrajectory\n";
-        // put walker.traj over zmpgui_chan ach channel
-        ach_put( &zmpgui_chan, &guiTrajectory, sizeof(guiTrajectory) );*/
       }
-
       std::cout << "\nCURRENT TRAJECTORY #: " << curTrajNumber << "\n\n";
     }
   }
