@@ -369,9 +369,8 @@ int main(int argc, char** argv)
 
   std::cout << "Getting trajectory from ach\n";
   std::cout << "count: " << curTrajectory.count << std::endl;
-  while(curTrajectory.count <= 0)
-    std::cout << "countin: " << curTrajectory.count << std::endl;
-    ach_get( &zmp_chan, &curTrajectory, sizeof(curTrajectory), &fs, NULL, ACH_O_LAST );
+  //while(curTrajectory.count <= 0)
+  ach_get( &zmp_chan, &curTrajectory, sizeof(curTrajectory), &fs, NULL, ACH_O_WAIT );
 
   std::cout << "Got trajectory!\n";
 

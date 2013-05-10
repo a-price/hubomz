@@ -1,6 +1,5 @@
 add_library(hubozmp zmpwalkgenerator.cpp footprint.cpp gait-timer.cpp swing.cpp)
 
-
 add_gui_app(zmpdemo zmpdemo.cpp)
 add_gui_app(zmpgui zmpgui.cpp)
 add_executable(zmp-daemon zmp-daemon.cpp)

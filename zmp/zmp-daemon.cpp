@@ -91,7 +91,6 @@ void usage(std::ostream& ostr) {
     "\n"
     "OPTIONS:\n"
     "\n"
-    "  -g, --show-gui                    Show a GUI after computing trajectories.\n"
     "  -A, --use-ach                     Send trajectory via ACH after computing.\n"
     "  -I, --ik-errors                   IK error handling: strict/permissive/sloppy\n"
     "  -w, --walk-type                   Set type: canned/line/circle\n"
@@ -179,45 +178,42 @@ int main(int argc, char** argv)
     return 1;
   }
 
-
-  bool show_gui = false;
-  bool use_ach = false;
+  bool use_ach = true;
 
   walktype walk_type = walk_canned;
   double walk_circle_radius = 5.0;
-  double walk_dist = 20;
+  double walk_dist = 10;
 
-  double footsep_y = 0.085; // half of horizontal separation distance between feet
-  double foot_liftoff_z = 0.05; // foot liftoff height
+  double footsep_y = 0.0885; // half of horizontal separation distance between feet
+  double foot_liftoff_z = 0.04; // foot liftoff height
 
-  double step_length = 0.05;
+  double step_length = 0.08;
   double sidestep_length = 0.01;
   bool walk_sideways = false;
 
-  double com_height = 0.48; // height of COM above ANKLE
+  double com_height = 0.5; // height of COM above ANKLE
   double com_ik_ascl = 0;
 
   double zmpoff_y = 0; // lateral displacement between zmp and ankle
-  double zmpoff_x = 0;
+  double zmpoff_x = 0.038;
 
   double lookahead_time = 2.5;
 
   double startup_time = 1.0;
   double shutdown_time = 1.0;
-  double double_support_time = 0.05;
-  double single_support_time = 0.70;
+  double double_support_time = 0.01;
+  double single_support_time = 0.50;
 
-  size_t max_step_count = 4;
+  size_t max_step_count = 3;
 //  size_t end_steps = 5;
 //  size_t start_steps = 4;
 
   double zmp_jerk_penalty = 1e-8; // jerk penalty on ZMP controller
   size_t curTrajNumber = 0; // current trajectory number
 
-  ZMPWalkGenerator::ik_error_sensitivity ik_sense = ZMPWalkGenerator::ik_strict;
+  ZMPWalkGenerator::ik_error_sensitivity ik_sense = ZMPWalkGenerator::ik_swing_permissive;
 
   const struct option long_options[] = {
-    { "show-gui",            no_argument,       0, 'g' },
     { "use-ach",             no_argument,       0, 'A' },
     { "ik-errors",           required_argument, 0, 'I' },
     { "walk-type",           required_argument, 0, 'w' },
@@ -242,14 +238,13 @@ int main(int argc, char** argv)
     { 0,                     0,                 0,  0  },
   };
 
-  const char* short_options = "gAI:w:D:r:c:y:z:l:Sh:a:Y:X:T:p:n:d:s:R:H";
+  const char* short_options = "AI:w:D:r:c:y:z:l:Sh:a:Y:X:T:p:n:d:s:R:H";
 
   int opt, option_index;
 
 
   while ( (opt = getopt_long(argc, argv, short_options, long_options, &option_index)) != -1 ) {
     switch (opt) {
-    case 'g': show_gui = true; break;
     case 'A': use_ach = true; break;
     case 'I': ik_sense = getiksense(optarg); break;
     case 'w': walk_type = getwalktype(optarg); break;
@@ -369,7 +364,6 @@ int main(int argc, char** argv)
   walkTransition_t walkTransition = STAY_STILL;
   size_t startTick = 0;
   zmp_traj_t trajectory;
-  zmpgui_traj_t guiTrajectory;
 
   // main loop
   while(true)
@@ -647,6 +641,8 @@ int main(int argc, char** argv)
         else
           N = (int)walker.traj.size();
 
+        std::cout << "N: " << N << std::endl;
+
         // set variables for output to walker
         trajectory.count = N;
         trajectory.trajNumber = curTrajNumber;
@@ -688,6 +684,7 @@ int main(int argc, char** argv)
       std::cout << "\nCURRENT TRAJECTORY #: " << curTrajNumber << "\n\n";
     }
   }
+  tty_reset(STDIN_FILENO);
   return 0;
 }
 
