@@ -2,6 +2,7 @@
 #define _HUBO_ZMP_H_
 
 #include <stdlib.h>
+#include <vector>
 
 #ifdef HAVE_HUBO_ACH
 #include <hubo.h>
@@ -64,10 +65,10 @@ typedef struct zmpgui_traj {
   size_t startTick;
   walkState_t walkState;
   walkTransition_t walkTransition;
-} zmpgui_traj_t
+} zmpgui_traj_t;
 
 #define HUBO_CHAN_ZMP_TRAJ_NAME "hubo-zmp-traj"
-#define HUBO_CHAN_ZMP_GUI_NAME "hubo-zmp-gui"
+#define HUBO_CHAN_ZMP_GUI_NAME "hubo-gui-traj"
 
 #endif
 
