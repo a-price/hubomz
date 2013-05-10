@@ -377,7 +377,7 @@ int main(int argc, char** argv)
       {
         std::cout << "Reading keyboard input\n";
         // if user pressed a new key, then process walk command
-        if( key != prevKey )
+        if( key != prevKey && (key == 'i' || key == 'j' || key == 'k' || key == 'm' || key == 'l'))
         {
           switch (key)
           {
@@ -442,6 +442,7 @@ int main(int argc, char** argv)
         else
         {
           std::cout << "continue whatever we were doing before\n";
+	      key = prevKey;
           break;
         }
       }
@@ -623,7 +624,7 @@ int main(int argc, char** argv)
       //////////////////////////////////////////////////////////////////////
       // have the walker run preview control and pass on the output
       walker.bakeIt();
-      //validateOutputData(walker.traj);
+      validateOutputData(walker.traj);
 
       if (use_ach) {
         std::cout << "sending traj over ach\n";
