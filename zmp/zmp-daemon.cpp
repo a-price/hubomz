@@ -392,10 +392,7 @@ int main(int argc, char** argv)
                   ready = true;
                   walkState = WALKING_FORWARD;
                   walkTransition = SWITCH_WALK;
-                  curTrajNumber = 0;
                   startTick = 0;
-                  initContext.eX = 0;
-                  initContext.eY = 0;
                   break;
               case 'm':
                   // walk backwards
@@ -406,10 +403,7 @@ int main(int argc, char** argv)
                   ready = true;
                   walkState = WALKING_BACKWARD;
                   walkTransition = SWITCH_WALK;
-                  curTrajNumber = 0;
                   startTick = 0;
-                  initContext.eX = 0;
-                  initContext.eY = 0;
                   break;
               case 'j':
                   // sidestep right
@@ -420,10 +414,7 @@ int main(int argc, char** argv)
                   ready = true;
                   walkState = SIDESTEPPING_LEFT;
                   walkTransition = SWITCH_WALK;
-                  curTrajNumber = 0;
                   startTick = 0;
-                  initContext.eX = 0;
-                  initContext.eY = 0;
                   break;
               case 'l':
                   // sidestep left
@@ -434,10 +425,7 @@ int main(int argc, char** argv)
                   ready = true;
                   walkState = SIDESTEPPING_RIGHT;
                   walkTransition = SWITCH_WALK;
-                  curTrajNumber = 0;
                   startTick = 0;
-                  initContext.eX = 0;
-                  initContext.eY = 0;
                   break;
               case 'k':
                   // walk to standstill
@@ -446,10 +434,7 @@ int main(int argc, char** argv)
                   ready = true;
                   walkState = STOP;
                   walkTransition = WALK_TO_STOP;
-                  curTrajNumber = 0;
                   startTick = 0;
-                  initContext.eX = 0;
-                  initContext.eY = 0;
                   break;
               default:
                   break;
@@ -506,6 +491,8 @@ int main(int argc, char** argv)
 
     if(walkState == STOP && walkTransition == WALK_TO_STOP)
     {
+      std::cout << "Telling walking we're stopping\n";
+      memset( &trajectory, 0, sizeof(trajectory) );
       trajectory.walkState = STOP;
       trajectory.walkTransition = WALK_TO_STOP;
       if (use_ach)
@@ -520,17 +507,12 @@ int main(int argc, char** argv)
     {
       curTrajNumber++;
       std::cout << "\n\nCURRENT TRAJECTORY #: " << curTrajNumber << "\n\n";
-
-//      if( curTrajNumber != 1 && walkTransition == SWITCH_WALK )
-//        initContext = walker.getNextInitContext();
+      std::cout << "walkState: " << walkState
+                << "walkTransition: " << walkTransition
+                << std::endl;
 
       // apply COM IK for init context
       walker.applyComIK(initContext);
-
-      /*
-      walker.traj.resize(1);
-      walker.refToTraj(initContext, walker.traj.back());
-      */
 
       walker.initialize(initContext);
       
@@ -637,17 +619,18 @@ int main(int argc, char** argv)
 
       //////////////////////////////////////////////////////////////////////
       // have the walker run preview control and pass on the output
+      std::cout << "Baking hubo's cake\n";
       walker.bakeIt();
       initContext = walker.getNextInitContext((int)startTick);
-//          std::cout << "\nleft foot: " << initContext.feet[0].translation()
-//                    << "\nrigt foot: " << initContext.feet[1].translation()
-//                    << "\neX, eY: " << initContext.eX << ", " << initContext.eY
-//                    << "\ncomX: " << initContext.comX.transpose()
-//                    << "\ncomY: " << initContext.comY.transpose()
-//                    << std::endl;
+          std::cout << "\nleft foot: " << initContext.feet[0].translation()
+                    << "\nrigt foot: " << initContext.feet[1].translation()
+                    << "\neX, eY: " << initContext.eX << ", " << initContext.eY
+                    << "\ncomX: " << initContext.comX.transpose()
+                    << "\ncomY: " << initContext.comY.transpose()
+                    << std::endl;
 //      fullRefTraj = walker.getRefTraj();
       walker.clearRef();
-      validateOutputData(walker.traj);
+//      validateOutputData(walker.traj);
 
       if (use_ach) {
         //############################
@@ -695,18 +678,18 @@ int main(int argc, char** argv)
                                                                      fullRefTraj.at(i).comY(2),
                                                                      fullRefTraj.at(i).feet[0].translation().z(),
                                                                      fullRefTraj.at(i).feet[1].translation().z());
-*/          }
+          }*/
         }
         ach_status r = ach_put( &zmp_chan, &trajectory, sizeof(trajectory) );
         fprintf(stdout, "%s \n", ach_result_to_string(r));
         fprintf(stdout, "Message put\n");
       }
 //      if(curTrajNumber == 6 && fileClosed == false)
-      {
-        fclose(jointsFile);
-        fclose(comFile);
-        fileClosed = true;
-      }
+//      {
+//        fclose(jointsFile);
+//        fclose(comFile);
+//        fileClosed = true;
+//      }
     }
   }
   tty_reset(STDIN_FILENO);
