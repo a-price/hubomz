@@ -163,29 +163,29 @@ void ZMPWalkGenerator::addFootstep(const Footprint& fp) {
     //size_t single_ticks = TRAJ_FREQ_HZ * min_single_support_time;
 
     for (size_t i = 0; i < double_ticks; i++) {
-        // sigmoidally interopolate things like desired ZMP and body
-        // rotation. we run the sigmoid across both double and isngle
-        // support so we don't try to whip the body across for the
-        // split-second we're in double support.
-        double u = double(i) / double(double_ticks - 1);
-        double c = sigmoid(u);
+      // sigmoidally interopolate things like desired ZMP and body
+      // rotation. we run the sigmoid across both double and isngle
+      // support so we don't try to whip the body across for the
+      // split-second we're in double support.
+      double u = double(i) / double(double_ticks - 1);
+      double c = sigmoid(u);
 
-	double uu = double(i) / double(double_ticks + single_ticks - 1);
-	double cc = sigmoid(uu);
+      double uu = double(i) / double(double_ticks + single_ticks - 1);
+	  double cc = sigmoid(uu);
         
-        ZMPReferenceContext cur_context = start_context;
-        cur_context.stance = double_stance;
+      ZMPReferenceContext cur_context = start_context;
+      cur_context.stance = double_stance;
 
 
-        vec3 cur_zmp = zmp_start + (zmp_end - zmp_start) * c;
-        cur_context.pX = cur_zmp.x();
-        cur_context.pY = cur_zmp.y();
+      vec3 cur_zmp = zmp_start + (zmp_end - zmp_start) * c;
+      cur_context.pX = cur_zmp.x();
+      cur_context.pY = cur_zmp.y();
 
-        cur_context.state.body_rot = quat::slerp(start_context.state.body_rot, 
-                                                 body_rot_end, cc);
+      cur_context.state.body_rot = quat::slerp(start_context.state.body_rot, 
+                                               body_rot_end, cc);
 
 
-        ref.push_back(cur_context);
+      ref.push_back(cur_context);
     }
 
     double swing_foot_traj[single_ticks][3];
@@ -222,35 +222,35 @@ void ZMPWalkGenerator::addFootstep(const Footprint& fp) {
 
     for (size_t i = 0; i < single_ticks; i++) {
 
-	double uu = double(i + double_ticks) / double(double_ticks + single_ticks - 1);
-	double cc = sigmoid(uu);
+      double uu = double(i + double_ticks) / double(double_ticks + single_ticks - 1);
+      double cc = sigmoid(uu);
 
-	double ru;
+      double ru;
 
-	if (i < rot_dead_ticks) {
-	  ru = 0;
-	} else if (i < rot_dead_ticks + central_ticks) {
-	  ru = double(i - rot_dead_ticks) / double(central_ticks - 1);
-	} else {
-	  ru = 1;
-	}
-
-
-        ref.push_back(getLastRef());
-        ZMPReferenceContext& cur_context = ref.back();
-        cur_context.stance = single_stance;
-
-        cur_context.state.body_rot = quat::slerp(start_context.state.body_rot, 
-                                                 body_rot_end, cc);
+      if (i < rot_dead_ticks) {
+        ru = 0;
+      } else if (i < rot_dead_ticks + central_ticks) {
+        ru = double(i - rot_dead_ticks) / double(central_ticks - 1);
+      } else {
+        ru = 1;
+      }
 
 
-	cur_context.feet[swing_foot].setRotation(quat::slerp(foot_start_rot, 
-							     foot_end_rot,
-							     ru));
+      ref.push_back(getLastRef());
+      ZMPReferenceContext& cur_context = ref.back();
+      cur_context.stance = single_stance;
 
-	cur_context.feet[swing_foot].setTranslation(vec3(swing_foot_traj[i][0],
-							 swing_foot_traj[i][1],
-							 swing_foot_traj[i][2]));
+      cur_context.state.body_rot = quat::slerp(start_context.state.body_rot, 
+                                               body_rot_end, cc);
+
+
+      cur_context.feet[swing_foot].setRotation(quat::slerp(foot_start_rot, 
+                                   foot_end_rot,
+                                   ru));
+
+      cur_context.feet[swing_foot].setTranslation(vec3(swing_foot_traj[i][0],
+                               swing_foot_traj[i][1],
+                               swing_foot_traj[i][2]));
     }
 
     // finally, update the first step variable if necessary
@@ -273,6 +273,9 @@ void ZMPWalkGenerator::bakeIt() {
     dumpTraj();
     // TODO: for thinkin ahead
     //initContext = ref[first_step_index];
+}
+
+void ZMPWalkGenerator::clearRef() {
     ref.clear();
     haveInitContext = false;
 }
@@ -530,13 +533,17 @@ void ZMPWalkGenerator::refToTraj(const ZMPReferenceContext& cur_ref,
 }
 
 
-ZMPReferenceContext ZMPWalkGenerator::getNextInitContext()
+ZMPReferenceContext ZMPWalkGenerator::getNextInitContext(int tick)
 {
-  startTick = ref.size();
-  return ref.back();
+  return ref.at(tick);
 }
 
 size_t ZMPWalkGenerator::getStartTick()
 {
-  return startTick;
+  return ref.size();
+}
+
+std::vector<ZMPReferenceContext> ZMPWalkGenerator::getRefTraj()
+{
+  return ref;
 }

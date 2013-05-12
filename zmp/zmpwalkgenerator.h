@@ -117,6 +117,12 @@ public:
     void bakeIt();
  
     /**
+     * @function: clearRef()
+     * @brief: clears the ref trajectory
+    */
+    void clearRef();
+
+    /**
      * @function:  applyComIK(ZMPReferenceContext &ref)
      * @brief: runs the runComIK function on entire array of contexts
     */
@@ -163,7 +169,7 @@ public:
      * for the next trajectory, which is at the end
      * of the last step
     */
-    ZMPReferenceContext getNextInitContext();
+    ZMPReferenceContext getNextInitContext(int tick);
 
     /**
      * @function: getStartTick()
@@ -172,6 +178,14 @@ public:
      * @return: returns the size_t startTick
     */
     size_t getStartTick();
+
+    /**
+     * @function: getRefTraj()
+     * @brief: gets the full ref trajectory
+     * as a vector of ZMPReferenceContext which
+     * are in the world frame
+    */
+    std::vector<ZMPReferenceContext> getRefTraj();
 };
 
 // Local Variables:

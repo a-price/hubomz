@@ -3,6 +3,7 @@
 
 #include <stdlib.h>
 #include <vector>
+#include "stdint.h"
 
 #ifdef HAVE_HUBO_ACH
 #include <hubo.h>
@@ -32,6 +33,11 @@ enum walkTransition_t {
   WALK_TO_STOP
 };
 
+enum {
+  TRAJ_FREQ_HZ = 200,
+  MAX_TRAJ_SIZE = 2000,
+};
+
 typedef struct zmp_traj_element {
   double angles[HUBO_JOINT_COUNT];
   // XYZ pos/vel/accel in frame of stance ANKLE
@@ -44,11 +50,6 @@ typedef struct zmp_traj_element {
   stance_t stance;
 } zmp_traj_element_t;
 
-enum {
-  TRAJ_FREQ_HZ = 200,
-  MAX_TRAJ_SIZE = 2000,
-};
-
 typedef struct zmp_traj {
   zmp_traj_element_t traj[MAX_TRAJ_SIZE];
   size_t count;
@@ -58,17 +59,30 @@ typedef struct zmp_traj {
   walkTransition_t walkTransition;
 } zmp_traj_t;
 
-typedef struct zmpgui_traj {
-  std::vector<zmp_traj_element_t> traj;
-  size_t count;
-  size_t trajNumber;
-  size_t startTick;
+/*
+typedef struct zmp_traj_element {
+  uint64_t angles[HUBO_JOINT_COUNT];
+  // XYZ pos/vel/accel in frame of stance ANKLE
+  // (translated up ~10cm from foot -- i.e. z coord is 10cm less)
+  uint64_t com[3][3];
+  uint64_t zmp[2]; // XY of zmp in frame of stance ANKLE
+  uint64_t forces[2][3]; // right/left predicted normal forces
+  uint64_t torque[2][3]; // right/left predicted moments XYZ
+  // TODO: add orientation for IMU
+  stance_t stance;
+} zmp_traj_element_t;
+
+typedef struct zmp_traj {
+  zmp_traj_element_t traj[MAX_TRAJ_SIZE];
+  uint16_t count;
+  uint16_t trajNumber;
+  uint16_t startTick;
   walkState_t walkState;
   walkTransition_t walkTransition;
-} zmpgui_traj_t;
+} zmp_traj_t;
+*/
 
 #define HUBO_CHAN_ZMP_TRAJ_NAME "hubo-zmp-traj"
-#define HUBO_CHAN_ZMP_GUI_NAME "hubo-gui-traj"
 
 #endif
 

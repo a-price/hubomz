@@ -64,6 +64,74 @@ vector<Footprint> walkLine(double distance,
                       stance_foot);
 }
 
+/*
+vector<Footprint> walkLine(double distance,
+                           double halfFeetSep,
+                           double max_step_length,
+                           Footprint stance_foot) {
+
+    // make sure inputs are valid
+    assert(distance > 0);
+    assert(halfFeetSep > 0);
+    assert(max_step_length > 0);
+
+    // select stance foot, fill out transforms
+    Transform3 T_line_to_world = stance_foot.transform * Transform3(quat(), vec3(0, stance_foot.is_left?-halfFeetSep:halfFeetSep, 0));
+
+    // calculate number of steps and step length for distance
+    double numSteps = ceil(distance/max_step_length);
+    double stepLength = distance/numSteps;
+    double theta = 0;
+
+    // instatiate result list
+    vector<Footprint> result;
+    double curX = stance_foot.x();
+
+    // fill in result with footsteps
+    for(int i = 2; i < numSteps + 1; i++) {
+        curX += stepLength;
+        // add left footstep
+        if (is_even(i) xor stance_foot.is_left) { // i odd means this step is for the stance foot
+            result.push_back(Footprint(curX, halfFeetSep, theta, true));
+        }
+        // add right footstep
+        else {
+            result.push_back(Footprint(curX, -halfFeetSep, theta, false));
+        }
+    }
+
+    // fill in last two footprints
+    // add left footstep
+    if (is_even(numSteps) xor stance_foot.is_left) { // i odd means this step is for the stance foot
+        result.push_back(Footprint(curX, halfFeetSep, theta, true));
+    }
+    // add right footstep
+    else {
+        result.push_back(Footprint(curX, -halfFeetSep, theta, false));
+    }
+
+    std::cout << "before transformed\n";
+    for(int i = 0; i < (int)result.size(); i++)
+    {
+        std::cout << result.at(i).x() << ", " << result.at(i).y() << "\n";
+    }
+
+    // run through results transforming them back into the original frame of reference
+    for(std::vector<Footprint>::iterator it = result.begin(); it < result.end(); it++) {
+        it->transform = T_line_to_world * it->transform;
+    }
+
+    std::cout << "# of Footsteps: " << result.size() << std::endl;
+
+    for(int i = 0; i < (int)result.size(); i++)
+    {
+        std::cout << result.at(i).x() << ", " << result.at(i).y() << "\n";
+    }
+
+    // return the result
+    return result;
+}
+*/
 vector<Footprint> walkCircle(double radius,
                              double distance,
                              double width,
@@ -73,8 +141,8 @@ vector<Footprint> walkCircle(double radius,
     assert(distance > 0);
     assert(width > 0);
     assert(max_step_length > 0);
-    assert(max_step_angle >= -3.14159265359);
-    assert(max_step_angle < 3.14159265359);
+    assert(max_step_angle >= -M_PI);
+    assert(max_step_angle < M_PI);
 
     bool left_is_stance_foot = stance_foot.is_left;
 
@@ -151,6 +219,12 @@ vector<Footprint> walkCircle(double radius,
     // make first step just in place
     //result.insert(result.begin(), stance_foot);
     std::cout << "# of Footsteps: " << result.size() << std::endl;
+
+    for(int i = 0; i < (int)result.size(); i++)
+    {
+        std::cout << result.at(i).x() << ", " << result.at(i).y() << "\n";
+    }
+
     // return the result
     return result;
 }
@@ -162,16 +236,16 @@ vector<Footprint> turnInPlace(
                          Footprint from /// Where we start from. Note that this exact foot will be repeated in the output
     )
 {
-  assert(max_step_angle >= -3.14159265359);
-  assert(max_step_angle <   3.14159265359);
-  assert(desired_angle >=  -3.14159265359);
-  assert(desired_angle <    3.14159265359);
-  assert(from.theta() >=   -3.14159265359);
-  assert(from.theta() <     3.14159265359);
+  assert(max_step_angle >= -M_PI);
+  assert(max_step_angle <   M_PI);
+  assert(desired_angle >=  -M_PI);
+  assert(desired_angle <    M_PI);
+  assert(from.theta() >=   -M_PI);
+  assert(from.theta() <     M_PI);
 
   double goal_angle = desired_angle-from.theta();
-  if(goal_angle >= 3.14159265359) goal_angle -= 3.14159265359;
-  else if( goal_angle < -3.14159265359) goal_angle -= 3.14159265359;
+  if(goal_angle >= M_PI) goal_angle -= M_PI;
+  else if( goal_angle < -M_PI) goal_angle -= M_PI;
   double eps = 1e-10;
   return walkCircle(eps, eps*goal_angle, width, 1000, max_step_angle, from);
 }

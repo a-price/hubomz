@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include "zmpwalkgenerator.h"
 #include "footprint.h"
+#include <iostream>
 
 // for keyboard interrupt
 static int tty_unbuffered(int);     
@@ -176,17 +177,21 @@ int main(int argc, char** argv)
     usage(std::cerr);
     return 1;
   }
+  FILE *jointsFile;
+  FILE *comFile;
+  jointsFile = fopen("joints.data","w");
+  comFile = fopen("com.data","w");
+  bool use_ach = false;
 
-  bool use_ach = true;
-
-  walktype walk_type = walk_canned;
+  walktype walk_type = walk_line;
   double walk_circle_radius = 5.0;
-  double walk_dist = 10;
+  double walk_dist = .3;
+  size_t max_step_count = 20;
+  double step_length = 0.1;
 
   double footsep_y = 0.0885; // half of horizontal separation distance between feet
   double foot_liftoff_z = 0.04; // foot liftoff height
 
-  double step_length = 0.08;
   double sidestep_length = 0.01;
   bool walk_sideways = false;
 
@@ -202,10 +207,6 @@ int main(int argc, char** argv)
   double shutdown_time = 1.0;
   double double_support_time = 0.01;
   double single_support_time = 0.50;
-
-  size_t max_step_count = 3;
-//  size_t end_steps = 5;
-//  size_t start_steps = 4;
 
   double zmp_jerk_penalty = 1e-8; // jerk penalty on ZMP controller
   size_t curTrajNumber = 0; // current trajectory number
@@ -289,9 +290,6 @@ int main(int argc, char** argv)
   // load in openRave hubo model
   HuboPlus hplus(hubofile);
 
-  // redirect Ctrl-C signal and others
-//  redirectSigs();
-
   // initialize keyboard interrupt
   keyboard_init();
   char key = '0';
@@ -308,18 +306,18 @@ int main(int argc, char** argv)
 
   // the actual state
   ZMPWalkGenerator walker(hplus,
-			                    ik_sense,
+                          ik_sense,
                           com_height,
                           zmp_jerk_penalty,
-			                    zmpoff_x,
-			                    zmpoff_y,
+                          zmpoff_x,
+                          zmpoff_y,
                           com_ik_ascl,
                           single_support_time,
                           double_support_time,
                           startup_time,
                           shutdown_time,
                           foot_liftoff_z,
-			                    lookahead_time);
+                          lookahead_time);
 
   // BUILD INITIAL STATE
 
@@ -361,8 +359,12 @@ int main(int argc, char** argv)
   bool printStopped = false;
   walkState_t walkState = STOP;
   walkTransition_t walkTransition = STAY_STILL;
-  size_t startTick = 0;
+  double startTick = 0;
+  double curTrajStartTick = 0;
   zmp_traj_t trajectory;
+  bool fileClosed = false;
+  std::vector<ZMPReferenceContext> fullRefTraj;
+  Footprint initFoot;
 
   // main loop
   while(true)
@@ -391,6 +393,9 @@ int main(int argc, char** argv)
                   walkState = WALKING_FORWARD;
                   walkTransition = SWITCH_WALK;
                   curTrajNumber = 0;
+                  startTick = 0;
+                  initContext.eX = 0;
+                  initContext.eY = 0;
                   break;
               case 'm':
                   // walk backwards
@@ -402,6 +407,9 @@ int main(int argc, char** argv)
                   walkState = WALKING_BACKWARD;
                   walkTransition = SWITCH_WALK;
                   curTrajNumber = 0;
+                  startTick = 0;
+                  initContext.eX = 0;
+                  initContext.eY = 0;
                   break;
               case 'j':
                   // sidestep right
@@ -413,6 +421,9 @@ int main(int argc, char** argv)
                   walkState = SIDESTEPPING_LEFT;
                   walkTransition = SWITCH_WALK;
                   curTrajNumber = 0;
+                  startTick = 0;
+                  initContext.eX = 0;
+                  initContext.eY = 0;
                   break;
               case 'l':
                   // sidestep left
@@ -424,6 +435,9 @@ int main(int argc, char** argv)
                   walkState = SIDESTEPPING_RIGHT;
                   walkTransition = SWITCH_WALK;
                   curTrajNumber = 0;
+                  startTick = 0;
+                  initContext.eX = 0;
+                  initContext.eY = 0;
                   break;
               case 'k':
                   // walk to standstill
@@ -433,6 +447,9 @@ int main(int argc, char** argv)
                   walkState = STOP;
                   walkTransition = WALK_TO_STOP;
                   curTrajNumber = 0;
+                  startTick = 0;
+                  initContext.eX = 0;
+                  initContext.eY = 0;
                   break;
               default:
                   break;
@@ -442,7 +459,7 @@ int main(int argc, char** argv)
         else
         {
           std::cout << "continue whatever we were doing before\n";
-	      key = prevKey;
+          key = prevKey;
           break;
         }
       }
@@ -502,9 +519,10 @@ int main(int argc, char** argv)
     if( walkTransition == SWITCH_WALK || walkTransition == KEEP_WALKING )
     {
       curTrajNumber++;
+      std::cout << "\n\nCURRENT TRAJECTORY #: " << curTrajNumber << "\n\n";
 
-      if( curTrajNumber != 1 && walkTransition == SWITCH_WALK )
-        initContext = walker.getNextInitContext();
+//      if( curTrajNumber != 1 && walkTransition == SWITCH_WALK )
+//        initContext = walker.getNextInitContext();
 
       // apply COM IK for init context
       walker.applyComIK(initContext);
@@ -518,9 +536,11 @@ int main(int argc, char** argv)
       
       //////////////////////////////////////////////////////////////////////
       // build ourselves some footprints
-      
-      Footprint initLeftFoot = Footprint(initContext.feet[0], true);
-      /* Footprint initRightFoot = Footprint(initContext.feet[1], false); */
+
+      if(initContext.stance == SINGLE_LEFT || initContext.stance == DOUBLE_LEFT)     
+        initFoot = Footprint(initContext.feet[0], true);
+      else
+        initFoot = Footprint(initContext.feet[1], false);
 
       std::vector<Footprint> footprints;
 
@@ -530,18 +550,19 @@ int main(int argc, char** argv)
         {
           double circle_max_step_angle = M_PI / 12.0; // maximum angle between steps TODO: FIXME: add to cmd line??
           footprints = walkCircle(walk_circle_radius,
-                  walk_dist,
-			                            footsep_y,
-			                            step_length,
-			                            circle_max_step_angle,
-			                            initLeftFoot);
+                                  walk_dist,
+                                  footsep_y,
+                                  step_length,
+                                  circle_max_step_angle,
+                                  initFoot);
           break;
         }
         case walk_line:
         {
-          footprints = walkLine(walk_dist, footsep_y,
-			                          step_length,
-			                          initLeftFoot);
+          footprints = walkLine(walk_dist,
+                                footsep_y,
+                                step_length,
+                                initFoot);
           break;
         }
         default:
@@ -554,7 +575,6 @@ int main(int argc, char** argv)
 
           for (size_t i=0; i<max_step_count; ++i)
           {
-     //   for (size_t i=0; i<max_step_count + end_steps; ++i) {
             bool is_left = i%2;
             if (walk_sideways && step_length < 0) { is_left = !is_left; }
             int swing = is_left ? 0 : 1;
@@ -565,23 +585,16 @@ int main(int argc, char** argv)
             } 
             else
             {
+              // bring feet together
               if (i + 1 == max_step_count)
-              { //FIXME original
+              {
                 cur_x[swing] = cur_x[stance];
               }
+              // take a full step
               else
               {
                 cur_x[swing] = cur_x[stance] + 0.5*step_length;
-/*
-	if (i + 1 == max_step_count + end_steps) {
-	  cur_x[swing] = cur_x[stance]; // final step to bring feet together
-	} else if (i > max_step_count && i < max_step_count + end_steps - 1) { // first time i will be max_step_count
-        cur_x[swing] = cur_x[stance] + (0.5/(double)end_steps) * (double)(max_step_count + end_steps - i) * step_length; // last steps, incrementally smaller
-    } else if (i>=0 && i<start_steps) { // add small & increasing steps at the beginning
-        cur_x[swing] = cur_x[stance] + (0.5/(double)start_steps) * (double)(i+1) * step_length;
-    } else {
-	  cur_x[swing] = cur_x[stance] + 0.5*step_length; // all steps up to step "max_step_count"
-*/	          }
+              }
             }
             footprints.push_back(Footprint(cur_x[swing], cur_y[swing], 0, is_left));
           }
@@ -590,12 +603,12 @@ int main(int argc, char** argv)
         }
       }
 
-      if (footprints.size() > max_step_count)
-      {
-        footprints.resize(max_step_count);
+//      if (footprints.size() > max_step_count)
+//      {
+//        footprints.resize(max_step_count);
       //  if (footprints.size() > max_step_count + end_steps) {
       //    footprints.resize(max_step_count + end_steps);
-      }
+//      }
 
       //////////////////////////////////////////////////////////////////////
       // and then build up the walker
@@ -604,13 +617,14 @@ int main(int argc, char** argv)
       if(walkTransition != KEEP_WALKING)
         walker.stayDogStay(startup_time * TRAJ_FREQ_HZ);
 
+      curTrajStartTick = startTick;
+
       // add footsteps to ref, which is a ZMPReferenceContext,
       // which includes swingfoot trajectory, set next traj's initContext
       size_t footprintIndex=1;
       for(std::vector<Footprint>::iterator it = footprints.begin(); it != footprints.end(); it++) {
         if( footprintIndex == footprints.size() )
         {
-          initContext = walker.getNextInitContext();
           startTick = walker.getStartTick();
         }
         walker.addFootstep(*it);
@@ -624,10 +638,18 @@ int main(int argc, char** argv)
       //////////////////////////////////////////////////////////////////////
       // have the walker run preview control and pass on the output
       walker.bakeIt();
+      initContext = walker.getNextInitContext((int)startTick);
+//          std::cout << "\nleft foot: " << initContext.feet[0].translation()
+//                    << "\nrigt foot: " << initContext.feet[1].translation()
+//                    << "\neX, eY: " << initContext.eX << ", " << initContext.eY
+//                    << "\ncomX: " << initContext.comX.transpose()
+//                    << "\ncomY: " << initContext.comY.transpose()
+//                    << std::endl;
+//      fullRefTraj = walker.getRefTraj();
+      walker.clearRef();
       validateOutputData(walker.traj);
 
       if (use_ach) {
-        std::cout << "sending traj over ach\n";
         //############################
         //### SEND TRAJ TO WALKER ####
         //############################
@@ -643,22 +665,48 @@ int main(int argc, char** argv)
         std::cout << "N: " << N << std::endl;
 
         // set variables for output to walker
-        trajectory.count = N;
-        trajectory.trajNumber = curTrajNumber;
+        trajectory.count = N;//(uint16_t)N;
+        trajectory.trajNumber = curTrajNumber;//(uint16_t)curTrajNumber;
         trajectory.walkState = walkState; 
         trajectory.walkTransition = walkTransition;
-        trajectory.startTick = startTick;
+        trajectory.startTick = curTrajStartTick;//(uint16_t)curTrajStartTick;
 
-
+        std::cout << "startTick for curTraj: " << curTrajStartTick << "\n";
+        std::cout << "startTick for nextTraj: " << startTick << "\n";
         // put each 
         for(int i=0; i<N; i++)
+        {
           memcpy( &(trajectory.traj[i]), &(walker.traj[i]), sizeof(zmp_traj_element_t) );
-
+/*          if(i < startTick && curTrajNumber < 6 && fileClosed == false)
+          //if(curTrajNumber == 1 && fileClosed == false)
+          {
+            //fprintf(jointsFile, "%llu, %llu, %llu, %llu, %llu, %llu\n", trajectory.traj[i].angles[RHY],
+            fprintf(jointsFile, "%f, %f, %f, %f, %f, %f\n", trajectory.traj[i].angles[RHY],
+                                                            trajectory.traj[i].angles[RHR],
+                                                            trajectory.traj[i].angles[RHP],
+                                                            trajectory.traj[i].angles[RKN],
+                                                            trajectory.traj[i].angles[RAP],
+                                                            trajectory.traj[i].angles[RAR]);
+            fprintf(comFile, "%f, %f, %f, %f, %f, %f, %f, %f\n", fullRefTraj.at(i).comX(0),
+                                                                     fullRefTraj.at(i).comX(1),
+                                                                     fullRefTraj.at(i).comX(2),
+                                                                     fullRefTraj.at(i).comY(0),
+                                                                     fullRefTraj.at(i).comY(1),
+                                                                     fullRefTraj.at(i).comY(2),
+                                                                     fullRefTraj.at(i).feet[0].translation().z(),
+                                                                     fullRefTraj.at(i).feet[1].translation().z());
+*/          }
+        }
         ach_status r = ach_put( &zmp_chan, &trajectory, sizeof(trajectory) );
         fprintf(stdout, "%s \n", ach_result_to_string(r));
         fprintf(stdout, "Message put\n");
       }
-      std::cout << "\nCURRENT TRAJECTORY #: " << curTrajNumber << "\n\n";
+//      if(curTrajNumber == 6 && fileClosed == false)
+      {
+        fclose(jointsFile);
+        fclose(comFile);
+        fileClosed = true;
+      }
     }
   }
   tty_reset(STDIN_FILENO);
