@@ -177,11 +177,11 @@ int main(int argc, char** argv)
     usage(std::cerr);
     return 1;
   }
-  FILE *jointsFile;
-  FILE *comFile;
-  jointsFile = fopen("joints.data","w");
-  comFile = fopen("com.data","w");
-  bool use_ach = false;
+//  FILE *jointsFile;
+//  FILE *comFile;
+//  jointsFile = fopen("joints.data","w");
+//  comFile = fopen("com.data","w");
+  bool use_ach = true;
 
   walktype walk_type = walk_line;
   double walk_circle_radius = 5.0;
@@ -362,7 +362,7 @@ int main(int argc, char** argv)
   double startTick = 0;
   double curTrajStartTick = 0;
   zmp_traj_t trajectory;
-  bool fileClosed = false;
+//  bool fileClosed = false;
   std::vector<ZMPReferenceContext> fullRefTraj;
   Footprint initFoot;
 

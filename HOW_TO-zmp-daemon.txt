@@ -1,0 +1,90 @@
+
+#####################
+###### ISSUES #######
+#####################
+
+    - You must generate trajectories from a remote computer
+      that has 64-bit architecture, and send the trajectories
+      over ach using achd push (explained below).
+
+    - This is due 1) to Hubo's computer not being fast enough
+      and 2) to non-exact types being passed over ach.
+      This will be fixed in the future.
+
+#####################
+###### SETUP ########
+#####################
+
+1) WALKER (On HUBO, i.e. hubo-linux computer)
+
+    0. Connect to the motion computer on Hubo
+        $ ssh username@hubo-linux  (if you don't have a username, use "hubo")
+
+    1. Clone the examples-hubo-motion-rt repo and checkout branch "pete/zmpwalker"
+        $ git clone https://github.com/pvieira3/examples-hubo-motion-rt.git
+        $ cd examples-hubo-motion-rt
+        $ git checkout pete/zmpwalker
+
+    2. Setup and compile walker
+        $ ./setup
+
+    2b. After doing setup, you can just use "$ make walker" to compile new code
+
+    3. Start up Hubo
+        $ sudo service hubo-motion start
+
+    4. In the console program that pops up, run "startup" to initialize the sensors
+       and "homeAll" to home the joints. A list of joints that failed to home with
+       show up. To home failed joints, run "reset JNT", where JNT is the 3-letter
+       name of the joint, and "home JNT".
+        >> startup
+        >> homeAll
+
+    5. Start the walker program after setting up the zmp-daemon on the remote computer,
+       but before starting the zmp-daemon program.
+        $ ./walker
+
+    6. Hubo is now waiting for trajectories from the hubo-zmp-traj channel
+
+2) ZMP-DAEMON (On remote 64-bit PC)
+
+    1. Clone hubomz repo and checkout branch "pete
+        $ git clone https://github.com/golems/hubomz.git
+        $ cd hubomz
+        $ git checkout pete
+
+    2. Install dependencies
+
+    3. Setup and compile zmp-daemon (in top directory "hubomz")
+        $ ./setup
+
+    4. Create the ach channel, start achd push (in top directory "hubomz")
+        $ sudo ./run start
+
+    5. In a NEW TERMINAL navigate to hubomz directory and start the zmp-daemon program
+        $ ./build/zmp-daemon myhubo.kinbody.xml
+
+
+#####################
+##### OPERATION #####
+#####################
+
+Keyboard Controls
+
+    NOTE:
+        Keys are pressed once to execute each command.
+        No key should be pressed and held
+
+    CURRENTLY WORKING KEYS COMMANDS:
+        i: walk forward
+        k: stop
+
+    TO BE IMPLEMENTED SOON:
+        m: walk backward
+        j: sidestep left
+        l: sidestep right
+        u: turn left more
+        o: turn right more
+        h: turn in place left
+        ;: turn in place right
+    
