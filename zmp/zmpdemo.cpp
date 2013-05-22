@@ -411,11 +411,6 @@ long getlong(const char* str) {
   return d;
 }
 
-enum walktype {
-  walk_canned,
-  walk_line,
-  walk_circle
-};
 
 walktype getwalktype(const std::string& s) {
   if (s == "canned") {
