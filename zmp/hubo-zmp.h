@@ -15,7 +15,7 @@ enum stance_t {
   DOUBLE_LEFT  = 0,
   DOUBLE_RIGHT = 1,
   SINGLE_LEFT  = 2,
-  SINGLE_RIGHT = 3,
+  SINGLE_RIGHT = 3
 };
 
 enum walkState_t {

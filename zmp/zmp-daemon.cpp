@@ -14,15 +14,50 @@
 #include "footprint.h"
 #include <iostream>
 
-// for keyboard interrupt
-static int tty_unbuffered(int);     
-static void tty_atexit(void);
-static int tty_reset(int);
-static void keyboard_init();
-static struct termios save_termios;
-static int  ttysavefd = -1;
+// for ach communication and daemonization
+extern "C" {
+    #include "zmp-daemon.h"
+    #include <hubo.h>
+    #include <daemonizer.h>
+}
 
 using namespace fakerave;
+
+
+ach_channel_t zmp_cmd_chan;
+////////// Walking parameters //////////
+walktype walk_type;
+double walk_circle_radius;
+double walk_dist;
+size_t max_step_count;
+double step_length;
+
+double footstep_y; // half of horizontal separation distance between feet
+double foot_liftoff_z; // foot liftoff height
+
+double sidestep_length;
+bool walk_sideways;
+
+double com_height; // height of COM above ANKLE
+double com_ik_ascl;
+
+double zmpoff_y; // lateral displacement between zmp and ankle
+double zmpoff_x;
+
+double lookahead_time;
+
+double startup_time;
+double shutdown_time;
+double double_support_time;
+double single_support_time;
+
+double zmp_jerk_penalty; // jerk penalty on ZMP controller
+size_t curTrajNumber; // current trajectory number
+
+ik_error_sensitivity ik_sense;
+////////////////////////////////////////////
+
+
 
 typedef std::vector< zmp_traj_element_t > TrajVector;
 
@@ -137,11 +172,6 @@ long getlong(const char* str) {
   return d;
 }
 
-enum walktype {
-  walk_canned,
-  walk_line,
-  walk_circle
-};
 
 walktype getwalktype(const std::string& s) {
   if (s == "canned") {
@@ -157,13 +187,13 @@ walktype getwalktype(const std::string& s) {
   }
 }
 
-ZMPWalkGenerator::ik_error_sensitivity getiksense(const std::string& s) {
+ik_error_sensitivity getiksense(const std::string& s) {
   if (s == "strict") {
-    return ZMPWalkGenerator::ik_strict;
+    return ik_strict;
   } else if (s == "sloppy") {
-    return ZMPWalkGenerator::ik_sloppy;
+    return ik_sloppy;
   } else if (s == "permissive") {
-    return ZMPWalkGenerator::ik_swing_permissive;
+    return ik_swing_permissive;
   } else {
     std::cerr << "bad ik error sensitivity " << s << "\n";
     usage(std::cerr);
@@ -171,8 +201,45 @@ ZMPWalkGenerator::ik_error_sensitivity getiksense(const std::string& s) {
   }
 }
 
+
+void sortWalkParameters(zmp_cmd_t& cmd)
+{
+    walk_type = cmd.walk_type;
+    walk_circle_radius = cmd.walk_circle_radius;
+    walk_dist = cmd.walk_dist;
+    max_step_count = cmd.max_step_count;
+    step_length = cmd.step_length;
+
+    footstep_y = cmd.footstep_y; // half of horizontal separation distance between feet
+    foot_liftoff_z = cmd.foot_liftoff_z; // foot liftoff height
+
+    sidestep_length = cmd.sidestep_length;
+
+    com_height = cmd.com_height; // height of COM above ANKLE
+    com_ik_ascl = cmd.com_ik_ascl;
+
+    zmpoff_y = cmd.zmpoff_y; // lateral displacement between zmp and ankle
+    zmpoff_x = cmd.zmpoff_x;
+
+    lookahead_time = cmd.lookahead_time;
+
+    startup_time = cmd.startup_time;
+    shutdown_time = cmd.shutdown_time;
+    double_support_time = cmd.double_support_time;
+    single_support_time = cmd.single_support_time;
+
+    zmp_jerk_penalty = cmd.zmp_jerk_penalty; // jerk penalty on ZMP controller
+    // curTrajNumber = 0; // current trajectory number // Is this needed?
+
+    ik_sense = cmd.ik_sense;
+}
+
 int main(int argc, char** argv)
 {
+    daemonize("zmp-daemon", 30);
+    ach_status_t r = ach_open( &zmp_cmd_chan, CHAN_ZMP_CMD_NAME, NULL );
+    daemon_assert( r==ACH_OK, __LINE__);
+
   if (argc < 2) {
     usage(std::cerr);
     return 1;
@@ -183,35 +250,35 @@ int main(int argc, char** argv)
 //  comFile = fopen("com.data","w");
   bool use_ach = true;
 
-  walktype walk_type = walk_line;
-  double walk_circle_radius = 5.0;
-  double walk_dist = .3;
-  size_t max_step_count = 20;
-  double step_length = 0.1;
+  walk_type = walk_line;
+  walk_circle_radius = 5.0;
+  walk_dist = .3;
+  max_step_count = 20;
+  step_length = 0.1;
 
-  double footsep_y = 0.0885; // half of horizontal separation distance between feet
-  double foot_liftoff_z = 0.04; // foot liftoff height
+  footstep_y = 0.0885; // half of horizontal separation distance between feet
+  foot_liftoff_z = 0.04; // foot liftoff height
 
-  double sidestep_length = 0.01;
-  bool walk_sideways = false;
+  sidestep_length = 0.01;
+  walk_sideways = false;
 
-  double com_height = 0.5; // height of COM above ANKLE
-  double com_ik_ascl = 0;
+  com_height = 0.5; // height of COM above ANKLE
+  com_ik_ascl = 0;
 
-  double zmpoff_y = 0; // lateral displacement between zmp and ankle
-  double zmpoff_x = 0.038;
+  zmpoff_y = 0; // lateral displacement between zmp and ankle
+  zmpoff_x = 0.038;
 
-  double lookahead_time = 2.5;
+  lookahead_time = 2.5;
 
-  double startup_time = 1.0;
-  double shutdown_time = 1.0;
-  double double_support_time = 0.01;
-  double single_support_time = 0.50;
+  startup_time = 1.0;
+  shutdown_time = 1.0;
+  double_support_time = 0.01;
+  single_support_time = 0.50;
 
-  double zmp_jerk_penalty = 1e-8; // jerk penalty on ZMP controller
-  size_t curTrajNumber = 0; // current trajectory number
+  zmp_jerk_penalty = 1e-8; // jerk penalty on ZMP controller
+  curTrajNumber = 0; // current trajectory number
 
-  ZMPWalkGenerator::ik_error_sensitivity ik_sense = ZMPWalkGenerator::ik_swing_permissive;
+  ik_sense = ik_swing_permissive;
 
   const struct option long_options[] = {
     { "use-ach",             no_argument,       0, 'A' },
@@ -251,7 +318,7 @@ int main(int argc, char** argv)
     case 'D': walk_dist = getdouble(optarg); break;
     case 'r': walk_circle_radius = getdouble(optarg); break;
     case 'c': max_step_count = getlong(optarg); break;
-    case 'y': footsep_y = getdouble(optarg); break;
+    case 'y': footstep_y = getdouble(optarg); break;
     case 'z': foot_liftoff_z = getdouble(optarg); break;
     case 'l': step_length = getdouble(optarg); break;
     case 'S': walk_sideways = true; break;
@@ -290,10 +357,6 @@ int main(int argc, char** argv)
   // load in openRave hubo model
   HuboPlus hplus(hubofile);
 
-  // initialize keyboard interrupt
-  keyboard_init();
-  char key = '0';
-  char prevKey = '1';
 
   ach_channel_t zmp_chan;
 
@@ -343,8 +406,8 @@ int main(int argc, char** argv)
   // build and fill in the initial foot positions
 
   Transform3 starting_location(quat::fromAxisAngle(vec3(0,0,1), 0));
-  initContext.feet[0] = Transform3(starting_location.rotation(), starting_location * vec3(0, footsep_y, 0));
-  initContext.feet[1] = Transform3(starting_location.rotation(), starting_location * vec3(0, -footsep_y, 0));
+  initContext.feet[0] = Transform3(starting_location.rotation(), starting_location * vec3(0, footstep_y, 0));
+  initContext.feet[1] = Transform3(starting_location.rotation(), starting_location * vec3(0, -footstep_y, 0));
 
   // fill in the rest
   initContext.stance = DOUBLE_LEFT;
@@ -366,124 +429,119 @@ int main(int argc, char** argv)
   std::vector<ZMPReferenceContext> fullRefTraj;
   Footprint initFoot;
 
+  zmp_cmd_t cmd;
+  cmd.cmd_state = STOP;
+  ach_put(&zmp_cmd_chan, &cmd, sizeof(cmd));
+
   // main loop
-  while(true)
+  while(!daemon_sig_quit)
   {
     ready = false;
 
     // check for next input command
     while(ready == false)
     {
-      // see if key has been pressed
-      if( read(STDIN_FILENO, &key, 1) == 1 )
-      {
-        std::cout << "Reading keyboard input\n";
-        // if user pressed a new key, then process walk command
-        if( key != prevKey && (key == 'i' || key == 'j' || key == 'k' || key == 'm' || key == 'l'))
+        size_t fs;
+        bool newCommand=false;
+        ach_status_t r = ach_get(&zmp_cmd_chan, &cmd, sizeof(cmd), &fs, NULL, ACH_O_LAST);
+        if( r==ACH_OK || r==ACH_STALE_FRAMES )
         {
-          switch (key)
-          {
-              case 'i':
-                  // walk forward
-                  std::cout << "walking forwards\n";
-                  walk_sideways = false;
-                  step_length = abs(step_length);
-                  prevKey = 'i';
-                  ready = true;
-                  walkState = WALKING_FORWARD;
-                  walkTransition = SWITCH_WALK;
-                  startTick = 0;
-                  break;
-              case 'm':
-                  // walk backwards
-                  std::cout << "walking backwards\n";
-                  walk_sideways = false;
-                  step_length = -abs(step_length);
-                  prevKey = 'm';
-                  ready = true;
-                  walkState = WALKING_BACKWARD;
-                  walkTransition = SWITCH_WALK;
-                  startTick = 0;
-                  break;
-              case 'j':
-                  // sidestep right
-                  std::cout << "sidestepping right\n";
-                  walk_sideways = true;
-                  step_length = abs(sidestep_length);
-                  prevKey = 'j';
-                  ready = true;
-                  walkState = SIDESTEPPING_LEFT;
-                  walkTransition = SWITCH_WALK;
-                  startTick = 0;
-                  break;
-              case 'l':
-                  // sidestep left
-                  std::cout << "sidestepping left\n";
-                  walk_sideways = true;
-                  step_length = -abs(sidestep_length);
-                  prevKey = 'l';
-                  ready = true;
-                  walkState = SIDESTEPPING_RIGHT;
-                  walkTransition = SWITCH_WALK;
-                  startTick = 0;
-                  break;
-              case 'k':
-                  // walk to standstill
-                  std::cout << "walking to a stop\n";
-                  prevKey = 'k';
-                  ready = true;
-                  walkState = STOP;
-                  walkTransition = WALK_TO_STOP;
-                  startTick = 0;
-                  break;
-              default:
-                  break;
-          }
+            newCommand = true;
+            sortWalkParameters(cmd);
         }
-        // if no new key was pressed keep doing what we were doing before
-        else
+
+        if( newCommand && cmd.cmd_state != walkState )
         {
-          std::cout << "continue whatever we were doing before\n";
-          key = prevKey;
-          break;
-        }
-      }
-      // else if a new key hasn't been pressed, but we've started walking
-      else if(key == prevKey)
-      {
-        switch(walkState)
-        {
-          case WALKING_FORWARD:
-            std::cout << "still walking forward\n";
-            printStopped = true;
-            walkTransition = KEEP_WALKING;
-            break;
-          case WALKING_BACKWARD:
-            std::cout << "still walking forward\n";
-            printStopped = true;
-            walkTransition = KEEP_WALKING;
-            break;
-          case SIDESTEPPING_LEFT:
-            std::cout << "still sidestepping left\n";
-            printStopped = true;
-            walkTransition = KEEP_WALKING;
-            break;
-          case SIDESTEPPING_RIGHT:
-            std::cout << "still sidestepping right\n";
-            printStopped = true;
-            walkTransition = KEEP_WALKING;
-            break;
-          case STOP:
-            if(printStopped == true)
+            switch( cmd.cmd_state )
             {
-              printStopped = false;
-              std::cout << "still stopped\n";
+                case WALKING_FORWARD:
+                    // walk forward
+                    std::cout << "walking forwards\n";
+                    walk_sideways = false;
+                    step_length = abs(step_length);
+                    ready = true;
+                    walkState = WALKING_FORWARD;
+                    walkTransition = SWITCH_WALK;
+                    startTick = 0;
+                    break;
+                case WALKING_BACKWARD:
+                    // walk backwards
+                    std::cout << "walking backwards\n";
+                    walk_sideways = false;
+                    step_length = -abs(step_length);
+                    ready = true;
+                    walkState = WALKING_BACKWARD;
+                    walkTransition = SWITCH_WALK;
+                    startTick = 0;
+                    break;
+                case SIDESTEPPING_LEFT:
+                    // sidestep left
+                    std::cout << "sidestepping left\n";
+                    walk_sideways = true;
+                    step_length = abs(sidestep_length);
+                    ready = true;
+                    walkState = SIDESTEPPING_LEFT;
+                    walkTransition = SWITCH_WALK;
+                    startTick = 0;
+                    break;
+                case SIDESTEPPING_RIGHT:
+                    // sidestep right
+                    std::cout << "sidestepping right\n";
+                    walk_sideways = true;
+                    step_length = -abs(sidestep_length);
+                    ready = true;
+                    walkState = SIDESTEPPING_RIGHT;
+                    walkTransition = SWITCH_WALK;
+                    startTick = 0;
+                    break;
+                case STOP:
+                    // walk to standstill
+                    std::cout << "walking to a stop\n";
+                    ready = true;
+                    walkState = STOP;
+                    walkTransition = WALK_TO_STOP;
+                    startTick = 0;
+                    break;
+                default:
+                    break;
             }
-            walkTransition = STAY_STILL;
+        }
+        // else if a new key hasn't been pressed, but we've started walking
+        else if( cmd.cmd_state == walkState )
+        {
+            switch(walkState)
+            {
+                case WALKING_FORWARD:
+                    std::cout << "still walking forward\n";
+                    printStopped = true;
+                    walkTransition = KEEP_WALKING;
+                    break;
+                case WALKING_BACKWARD:
+                    std::cout << "still walking forward\n";
+                    printStopped = true;
+                    walkTransition = KEEP_WALKING;
+                    break;
+                case SIDESTEPPING_LEFT:
+                    std::cout << "still sidestepping left\n";
+                    printStopped = true;
+                    walkTransition = KEEP_WALKING;
+                    break;
+                case SIDESTEPPING_RIGHT:
+                    std::cout << "still sidestepping right\n";
+                    printStopped = true;
+                    walkTransition = KEEP_WALKING;
+                    break;
+                case STOP:
+                    if(printStopped == true)
+                    {
+                        printStopped = false;
+                        std::cout << "still stopped\n";
+                    }
+                    walkTransition = STAY_STILL;
+                    break;
+            }
             break;
         }
-        break;
-      }
     } // end of while loop
 
 
@@ -533,7 +591,7 @@ int main(int argc, char** argv)
           double circle_max_step_angle = M_PI / 12.0; // maximum angle between steps TODO: FIXME: add to cmd line??
           footprints = walkCircle(walk_circle_radius,
                                   walk_dist,
-                                  footsep_y,
+                                  footstep_y,
                                   step_length,
                                   circle_max_step_angle,
                                   initFoot);
@@ -542,7 +600,7 @@ int main(int argc, char** argv)
         case walk_line:
         {
           footprints = walkLine(walk_dist,
-                                footsep_y,
+                                footstep_y,
                                 step_length,
                                 initFoot);
           break;
@@ -552,8 +610,8 @@ int main(int argc, char** argv)
           double cur_x[2] = { 0, 0 };
           double cur_y[2] = { 0, 0 };
 
-          cur_y[0] =  footsep_y;
-          cur_y[1] = -footsep_y;
+          cur_y[0] =  footstep_y;
+          cur_y[1] = -footstep_y;
 
           for (size_t i=0; i<max_step_count; ++i)
           {
@@ -692,71 +750,9 @@ int main(int argc, char** argv)
 //      }
     }
   }
-  tty_reset(STDIN_FILENO);
   return 0;
 }
 
-
-static int
-tty_unbuffered(int fd)      /* put terminal into a raw mode */
-{
-    struct termios  buf;
-
-    if (tcgetattr(fd, &buf) < 0)
-        return(-1);
-        
-    save_termios = buf; /* structure copy */
-
-    /* echo off, canonical mode off */
-    buf.c_lflag &= ~(ECHO | ICANON);
-
-    /* 1 byte at a time, no timer */
-    buf.c_cc[VMIN] = 1;
-    buf.c_cc[VTIME] = 0;
-    if (tcsetattr(fd, TCSAFLUSH, &buf) < 0)
-        return(-1);
-
-    ttysavefd = fd;
-    return(0);
-}
-
-static int
-tty_reset(int fd)       /* restore terminal's mode */
-{
-    if (tcsetattr(fd, TCSAFLUSH, &save_termios) < 0)
-        return(-1);
-    return(0);
-}
-
-static void
-tty_atexit(void)        /* can be set up by atexit(tty_atexit) */
-{
-    if (ttysavefd >= 0)
-        tty_reset(ttysavefd);
-}
-
-static void
-keyboard_init()
-{
-   /* make stdin unbuffered */
-    if (tty_unbuffered(STDIN_FILENO) < 0) {
-        std::cout << "Set tty unbuffered error" << std::endl;
-        exit(1);
-    }
-
-    atexit(tty_atexit);
-
-    /* nonblock I/O */
-    int flags;
-    if ( (flags = fcntl(STDIN_FILENO, F_GETFL, 0)) == 1) {
-        perror("fcntl get flag error");
-        exit(1);
-    }
-    if (fcntl(STDIN_FILENO, F_SETFL, flags | O_NONBLOCK) == -1) {
-        perror("fcntl set flag error");
-        exit(1);
-    }
-}
 
 // Local Variables:
 // c-basic-offset: 2

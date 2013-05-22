@@ -1,3 +1,6 @@
+#ifndef ZMPWALKGENERATOR_H
+#define ZMPWALKGENERATOR_H
+
 #include "math.h"
 #include "mzcommon/Transform3.h"
 #include "zmp/footprint.h"
@@ -5,12 +8,16 @@
 #include "hubo-zmp.h"
 #include "gait-timer.h"
 #include "HuboPlus.h"
-
+#include "zmp-daemon.h"
 
 
 
 
 using namespace fakerave;
+
+
+
+
 
 class ZMPReferenceContext {
 public:
@@ -30,12 +37,7 @@ public:
     
   // TODO: shove these into struct
   
-  enum ik_error_sensitivity {
-    ik_strict, // default
-    ik_swing_permissive, // allows ik errors on swing foot when above 0.5 * step_height
-    ik_sloppy, // never ever ever ever run this on the robot
-    
-  };
+
 
     ZMPWalkGenerator(HuboPlus& _hplus,
         		     ik_error_sensitivity ik_sense,
@@ -191,3 +193,5 @@ public:
 // Local Variables:
 // mode: c++
 // End:
+
+#endif // ZMPWALKGENERATOR_H

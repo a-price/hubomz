@@ -431,13 +431,13 @@ walktype getwalktype(const std::string& s) {
   }
 }
 
-ZMPWalkGenerator::ik_error_sensitivity getiksense(const std::string& s) {
+ik_error_sensitivity getiksense(const std::string& s) {
   if (s == "strict") {
-    return ZMPWalkGenerator::ik_strict;
+    return ik_strict;
   } else if (s == "sloppy") {
-    return ZMPWalkGenerator::ik_sloppy;
+    return ik_sloppy;
   } else if (s == "permissive") {
-    return ZMPWalkGenerator::ik_swing_permissive;
+    return ik_swing_permissive;
   } else {
     std::cerr << "bad ik error sensitivity " << s << "\n";
     usage(std::cerr);
@@ -487,7 +487,7 @@ int main(int argc, char** argv) {
   double zmp_jerk_penalty = 1e-8; // jerk penalty on ZMP controller
   size_t curTrajNumber = 0; // current trajectory number
 
-  ZMPWalkGenerator::ik_error_sensitivity ik_sense = ZMPWalkGenerator::ik_strict;
+  ik_error_sensitivity ik_sense = ik_strict;
 
   const struct option long_options[] = {
     { "show-gui",            no_argument,       0, 'g' },
