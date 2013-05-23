@@ -38,7 +38,7 @@ void GaitTimer::set_duty_double(double df, double double_time) {
 }
 
 size_t GaitTimer::seconds_to_ticks(double s) {
-    return size_t(round(s*TRAJ_FREQ_HZ));
+    return size_t(round(s*ZMP_TRAJ_FREQ_HZ));
 }
 
 size_t GaitTimer::compute_startup() {

@@ -27,7 +27,7 @@ using namespace fakerave;
 typedef std::vector< zmp_traj_element_t > TrajVector;
 
 size_t seconds_to_ticks(double s) {
-  return size_t(round(s*TRAJ_FREQ_HZ));
+  return size_t(round(s*ZMP_TRAJ_FREQ_HZ));
 }
 /*TODO remove this
 */
@@ -309,7 +309,7 @@ public:
 * @return: void
 */
 void validateCOMTraj(Eigen::MatrixXd& comX, Eigen::MatrixXd& comY) {
-    const double dt = 1.0/TRAJ_FREQ_HZ;
+    const double dt = 1.0/ZMP_TRAJ_FREQ_HZ;
     double comVel, comAcc;
     Eigen::Matrix3d comStateDiffs;
     double comStateMaxes[] = {0.0, 0.0, 0.0};
@@ -341,7 +341,7 @@ void validateCOMTraj(Eigen::MatrixXd& comX, Eigen::MatrixXd& comY) {
 * @return: void
 */
 void validateOutputData(TrajVector& traj) {
-    const double dt = 1.0/TRAJ_FREQ_HZ;
+    const double dt = 1.0/ZMP_TRAJ_FREQ_HZ;
     double maxJointVel=0;
     double jointVel;
     const double jointVelTol = 6.0; // radians/s
@@ -757,7 +757,7 @@ int main(int argc, char** argv) {
   // and then build up the walker
 
 
-//  walker.stayDogStay(startup_time * TRAJ_FREQ_HZ);
+//  walker.stayDogStay(startup_time * ZMP_TRAJ_FREQ_HZ);
 
 
   for(std::vector<Footprint>::iterator it = footprints.begin(); it != footprints.end(); it++) {
@@ -766,7 +766,7 @@ int main(int argc, char** argv) {
 
 
 
-  walker.stayDogStay(shutdown_time * TRAJ_FREQ_HZ);
+  walker.stayDogStay(shutdown_time * ZMP_TRAJ_FREQ_HZ);
   
 
   //////////////////////////////////////////////////////////////////////
@@ -785,8 +785,8 @@ int main(int argc, char** argv) {
     memset( &trajectory, 0, sizeof(trajectory) );
 
     int N;
-    if( (int)walker.traj.size() > MAX_TRAJ_SIZE )
-      N = MAX_TRAJ_SIZE;
+    if( (int)walker.traj.size() > ZMP_MAX_TRAJ_SIZE )
+      N = ZMP_MAX_TRAJ_SIZE;
     else
       N = (int)walker.traj.size();
 

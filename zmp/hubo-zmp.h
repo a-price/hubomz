@@ -29,10 +29,12 @@ enum walkTransition_t {
   WALK_TO_STOP
 };
 
+
 enum {
-  TRAJ_FREQ_HZ = 200,
-  MAX_TRAJ_SIZE = 2000
+  ZMP_TRAJ_FREQ_HZ = 200,
+  ZMP_MAX_TRAJ_SIZE = 2000
 };
+
 
 typedef struct zmp_traj_element {
   double angles[HUBO_JOINT_COUNT];
@@ -47,7 +49,7 @@ typedef struct zmp_traj_element {
 } zmp_traj_element_t;
 
 typedef struct zmp_traj {
-  zmp_traj_element_t traj[MAX_TRAJ_SIZE];
+  zmp_traj_element_t traj[ZMP_MAX_TRAJ_SIZE];
   size_t count;
   size_t trajNumber;
   size_t startTick;

@@ -62,7 +62,7 @@ ik_error_sensitivity ik_sense;
 typedef std::vector< zmp_traj_element_t > TrajVector;
 
 size_t seconds_to_ticks(double s) {
-  return size_t(round(s*TRAJ_FREQ_HZ));
+  return size_t(round(s*ZMP_TRAJ_FREQ_HZ));
 }
 
 /**
@@ -71,7 +71,7 @@ size_t seconds_to_ticks(double s) {
 * @return: void
 */
 void validateCOMTraj(Eigen::MatrixXd& comX, Eigen::MatrixXd& comY) {
-    const double dt = 1.0/TRAJ_FREQ_HZ;
+    const double dt = 1.0/ZMP_TRAJ_FREQ_HZ;
     double comVel, comAcc;
     Eigen::Matrix3d comStateDiffs;
     double comStateMaxes[] = {0.0, 0.0, 0.0};
@@ -103,7 +103,7 @@ void validateCOMTraj(Eigen::MatrixXd& comX, Eigen::MatrixXd& comY) {
 * @return: void
 */
 void validateOutputData(TrajVector& traj) {
-    const double dt = 1.0/TRAJ_FREQ_HZ;
+    const double dt = 1.0/ZMP_TRAJ_FREQ_HZ;
     double maxJointVel=0;
     double jointVel;
     const double jointVelTol = 6.0; // radians/s
@@ -237,6 +237,10 @@ void sortWalkParameters(zmp_cmd_t& cmd)
 int main(int argc, char** argv)
 {
     daemonize("zmp-daemon", 30);
+
+    char achcmd[100];
+    sprintf(achcmd, "sudo ach -1 -C %s -m 10 -n 3000 -o 666", CHAN_ZMP_CMD_NAME);
+    system(achcmd);
     ach_status_t r = ach_open( &zmp_cmd_chan, CHAN_ZMP_CMD_NAME, NULL );
     daemon_assert( r==ACH_OK, __LINE__);
 
@@ -655,7 +659,7 @@ int main(int argc, char** argv)
 
       // if we are walking from a standstill, add startup ticks where the zmp is stationary
       if(walkTransition != KEEP_WALKING)
-        walker.stayDogStay(startup_time * TRAJ_FREQ_HZ);
+        walker.stayDogStay(startup_time * ZMP_TRAJ_FREQ_HZ);
 
       curTrajStartTick = startTick;
 
@@ -672,7 +676,7 @@ int main(int argc, char** argv)
       }
 
       // add shutdown ticks where the zmp is stationary
-      walker.stayDogStay(shutdown_time * TRAJ_FREQ_HZ);
+      walker.stayDogStay(shutdown_time * ZMP_TRAJ_FREQ_HZ);
       
 
       //////////////////////////////////////////////////////////////////////
@@ -696,10 +700,10 @@ int main(int argc, char** argv)
         //############################
         memset( &trajectory, 0, sizeof(trajectory) );
 
-        // keep size of traj to MAX_TRAJ_SIZE
+        // keep size of traj to ZMP_MAX_TRAJ_SIZE
         int N;
-        if( (int)walker.traj.size() > MAX_TRAJ_SIZE )
-          N = MAX_TRAJ_SIZE;
+        if( (int)walker.traj.size() > ZMP_MAX_TRAJ_SIZE )
+          N = ZMP_MAX_TRAJ_SIZE;
         else
           N = (int)walker.traj.size();
 

@@ -79,7 +79,7 @@ void ZMPWalkGenerator::stayDogStay(size_t stay_ticks) {
   stance_t double_stance = DOUBLE_LEFT;
 
   // TODO: get from timer!!
-  size_t shift_ticks = TRAJ_FREQ_HZ * min_double_support_time;
+  size_t shift_ticks = ZMP_TRAJ_FREQ_HZ * min_double_support_time;
   if (shift_ticks > stay_ticks) { shift_ticks = stay_ticks; }
 
   for (size_t i=0; i<shift_ticks; ++i) {
@@ -210,7 +210,7 @@ void ZMPWalkGenerator::addFootstep(const Footprint& fp) {
 
     // we want to have a small deadband at the front and end when we rotate the foot around
     // so it has no rotational velocity during takeoff and landing
-    size_t rot_dead_ticks = 0.1 * TRAJ_FREQ_HZ; 
+    size_t rot_dead_ticks = 0.1 * ZMP_TRAJ_FREQ_HZ;
 
     if (single_ticks < 4*rot_dead_ticks) {
       rot_dead_ticks = single_ticks / 4;
@@ -297,7 +297,7 @@ void ZMPWalkGenerator::runZMPPreview() {
     Eigen::ArrayXd zmprefY(ref.size());
 
     // initialize the zmp preview controller
-    ZmpPreview preview(1.0/TRAJ_FREQ_HZ, com_height, lookahead_time*TRAJ_FREQ_HZ, zmp_R);
+    ZmpPreview preview(1.0/ZMP_TRAJ_FREQ_HZ, com_height, lookahead_time*ZMP_TRAJ_FREQ_HZ, zmp_R);
 
     // put all the zmp refs into eigen arrays in order to pass into the preview controller
     for(size_t i=0; i<ref.size(); i++) {
