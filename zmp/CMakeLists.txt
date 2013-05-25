@@ -31,4 +31,4 @@ target_link_libraries(swingtest           ${zmpdemo_libs})
 target_link_libraries(gait-timer-test     ${zmpdemo_libs})
 
 
-INSTALL( FILES zmp-daemon.h hubo-zmp.h DESTINATION /usr/include/  )
+INSTALL( FILES zmp-daemon.h DESTINATION /usr/include/  )
