@@ -238,7 +238,7 @@ void sortWalkParameters(zmp_cmd_t& cmd)
 
 int main(int argc, char** argv)
 {
-    daemonize("zmp-daemon", 30);
+    //daemonize("zmp-daemon", 30);
 
     char achcmd[100];
     sprintf(achcmd, "sudo ach -1 -C %s -m 10 -n 3000 -o 666", CHAN_ZMP_CMD_NAME);
@@ -451,11 +451,13 @@ int main(int argc, char** argv)
     // check for next input command
     while(ready == false)
     {
+
         size_t fs;
         bool newCommand=false;
         ach_status_t r = ach_get(&zmp_cmd_chan, &cmd, sizeof(cmd), &fs, NULL, ACH_O_LAST);
-        if( r==ACH_OK || r==ACH_STALE_FRAMES )
+        if( r == ACH_OK || r == ACH_MISSED_FRAME )
         {
+            std::cout << "Acquired new command" << std::endl;
             newCommand = true;
             sortWalkParameters(cmd);
         }
