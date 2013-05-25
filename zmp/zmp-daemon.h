@@ -15,7 +15,8 @@ enum ik_error_sensitivity {
 enum walktype {
   walk_canned,
   walk_line,
-  walk_circle
+  walk_circle,
+  walk_sidestep
 };
 
 typedef struct zmp_cmd
@@ -33,6 +34,7 @@ typedef struct zmp_cmd
     double footstep_y;
     double foot_liftoff_z;
 
+    double sidewalk_dist;
     double sidestep_length;
 
     double com_height;

@@ -35,6 +35,7 @@ double step_length;
 double footstep_y; // half of horizontal separation distance between feet
 double foot_liftoff_z; // foot liftoff height
 
+double sidewalk_dist;
 double sidestep_length;
 bool walk_sideways;
 
@@ -213,6 +214,7 @@ void sortWalkParameters(zmp_cmd_t& cmd)
     footstep_y = cmd.footstep_y; // half of horizontal separation distance between feet
     foot_liftoff_z = cmd.foot_liftoff_z; // foot liftoff height
 
+    sidewalk_dist = cmd.sidewalk_dist;
     sidestep_length = cmd.sidestep_length;
 
     com_height = cmd.com_height; // height of COM above ANKLE
@@ -464,50 +466,53 @@ int main(int argc, char** argv)
             {
                 case WALKING_FORWARD:
                     // walk forward
-                    std::cout << "walking forwards\n";
-                    walk_sideways = false;
-                    step_length = abs(step_length);
-                    ready = true;
                     walkState = WALKING_FORWARD;
                     walkTransition = SWITCH_WALK;
+                    walk_type = walk_line;
+                    std::cout << "WALK FORWARD\n";
+                    // Uses prevKey... TODO: consider if necessary
+                    // TODO: should fabs(walk_dist) not be here??
+                    ready = true;
                     startTick = 0;
                     break;
                 case WALKING_BACKWARD:
                     // walk backwards
-                    std::cout << "walking backwards\n";
-                    walk_sideways = false;
-                    step_length = -abs(step_length);
-                    ready = true;
                     walkState = WALKING_BACKWARD;
                     walkTransition = SWITCH_WALK;
+                    std::cout << "WALK BACKWARD\n";
+                    walk_type = walk_line;
+                    // TODO: should -fabs(walk_dist) not be here?
+                    ready = true;
                     startTick = 0;
                     break;
                 case SIDESTEPPING_LEFT:
                     // sidestep left
-                    std::cout << "sidestepping left\n";
-                    walk_sideways = true;
-                    step_length = abs(sidestep_length);
-                    ready = true;
                     walkState = SIDESTEPPING_LEFT;
                     walkTransition = SWITCH_WALK;
+                    initContext.stance = DOUBLE_RIGHT;
+                    std::cout << "SIDESTEP LEFT\n";
+                    walk_type = walk_sidestep;
+                    sidewalk_dist = fabs(sidewalk_dist);
+                    ready = true;
                     startTick = 0;
                     break;
                 case SIDESTEPPING_RIGHT:
                     // sidestep right
-                    std::cout << "sidestepping right\n";
-                    walk_sideways = true;
-                    step_length = -abs(sidestep_length);
-                    ready = true;
                     walkState = SIDESTEPPING_RIGHT;
                     walkTransition = SWITCH_WALK;
+                    initContext.stance = DOUBLE_LEFT;
+                    std::cout << "SIDESTEP RIGHT\n";
+                    walk_type = walk_sidestep;
+                    sidewalk_dist = -fabs(sidewalk_dist);
+                    ready = true;
                     startTick = 0;
                     break;
                 case STOP:
                     // walk to standstill
-                    std::cout << "walking to a stop\n";
-                    ready = true;
                     walkState = STOP;
                     walkTransition = WALK_TO_STOP;
+                    std::cout << "walking to a stop\n";
+                    ready = true;
                     startTick = 0;
                     break;
                 default:
@@ -543,17 +548,14 @@ int main(int argc, char** argv)
                     if(printStopped == true)
                     {
                         printStopped = false;
-                        std::cout << "still stopped\n";
+//                        std::cout << "still stopped\n";
                     }
                     walkTransition = STAY_STILL;
                     break;
             }
-            walkTransition = STAY_STILL;
-            break;
+            break; // TODO: Check on this
         }
-//        break; // TODO: Check on this
-      }
-    } // end of while loop
+    } // while( ready==false )
 
     if(curTrajNumber > 1 && walkState == STOP && walkTransition == WALK_TO_STOP)
     {
@@ -636,8 +638,8 @@ int main(int argc, char** argv)
         }
         case walk_sidestep:
         {
-          footprints = sidestep(sidestep_dist,
-                                footsep_y,
+          footprints = sidestep(sidewalk_dist,
+                                footstep_y,
                                 sidestep_length,
                                 initFoot);
           break;
