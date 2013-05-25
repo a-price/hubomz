@@ -60,6 +60,15 @@ std::vector<Footprint> walkCircle(double radius, /// The radius of the circle to
   );
 
 /**
+ * \fn sidestep
+ * \brief Generates a foot plan for sidestepping
+*/
+vector<Footprint> sidestep(double dist,
+                           double width,
+                           double max_step_length,
+                           Footprint stance_foot);
+
+/**
  * \fn turnInPlace
  * \brief Generates a foot plan for turning in place to desired angle. It will
  * always try to take the shortest way

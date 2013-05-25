@@ -36,6 +36,11 @@ AchClose()
     sudo ach -U $HUBO_ZMP_CHAN
 }
 
+AchRestart()
+{
+    AchClose
+    AchOpen
+}
 # Starts the ach daemon, pushing the
 # HUBO_ZMP_CHAN over ach to hubo-linux PC
 AchdStart()
@@ -79,6 +84,10 @@ case "$1" in
 
     'achclose')
         AchClose $2
+    ;;
+
+    'achrestart')
+        AchRestart $2
     ;;
 
     'achdstart')

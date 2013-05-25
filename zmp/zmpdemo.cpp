@@ -124,7 +124,7 @@ public:
     for (size_t hi=0; hi<hplus.huboJointOrder.size(); ++hi) {
       size_t ji = hplus.huboJointOrder[hi];
       if (ji != size_t(-1)) {
-      	state.jvalues[ji] = cur.angles[hi];
+        state.jvalues[ji] = cur.angles[hi];
       }
     }
     
@@ -138,8 +138,8 @@ public:
       actualComVel[a] = cur.com[a][1];
       actualComAcc[a] = cur.com[a][2];
       for (int f=0; f<2; ++f) {
-	forces[1-f][a] = cur.forces[f][a];
-	torques[1-f][a] = cur.torque[f][a]; // TODO: FIXME: pluralization WTF?
+    forces[1-f][a] = cur.forces[f][a];
+    torques[1-f][a] = cur.torque[f][a]; // TODO: FIXME: pluralization WTF?
       }
     }
 
@@ -260,13 +260,12 @@ public:
 
     if (animating) {
       if (cur_index+1 < traj.size()) { 
-	deltaCurrent(5);
-	glutPostRedisplay();
+        deltaCurrent(5);
+        glutPostRedisplay();
       } else {
-	animating = false;
+        animating = false;
       }
     }
-
     setTimer(40, 0);    
 
   }
@@ -451,31 +450,31 @@ int main(int argc, char** argv) {
   bool show_gui = false;
   bool use_ach = false;
 
-  walktype walk_type = walk_canned;
+  walktype walk_type = walk_line;
   double walk_circle_radius = 5.0;
-  double walk_dist = 20;
+  double walk_dist = 0.3;
 
-  double footsep_y = 0.085; // half of horizontal separation distance between feet
-  double foot_liftoff_z = 0.05; // foot liftoff height
+  double footsep_y = 0.0885; // half of horizontal separation distance between feet
+  double foot_liftoff_z = 0.04; // foot liftoff height
 
-  double step_length = 0.05;
+  double step_length = 0.1;
   double sidestep_length = 0.01;
   bool walk_sideways = false;
 
-  double com_height = 0.48; // height of COM above ANKLE
+  double com_height = 0.5; // height of COM above ANKLE
   double com_ik_ascl = 0;
 
   double zmpoff_y = 0; // lateral displacement between zmp and ankle
-  double zmpoff_x = 0;
+  double zmpoff_x = 0.038;
 
   double lookahead_time = 2.5;
 
   double startup_time = 1.0;
   double shutdown_time = 1.0;
-  double double_support_time = 0.05;
-  double single_support_time = 0.70;
+  double double_support_time = 0.01;
+  double single_support_time = 0.50;
 
-  size_t max_step_count = 4;
+  size_t max_step_count = 20;
 //  size_t end_steps = 5;
 //  size_t start_steps = 4;
 
@@ -584,25 +583,30 @@ int main(int argc, char** argv) {
                 // walk forward
                 std::cout << "pressed the " << c << " key\n";
                 walk_sideways = false;
-                step_length = abs(step_length);
+                step_length = fabs(step_length);
+                walk_dist = fabs(walk_dist);
+                walk_type = walk_line;
                 break;
             case 'k':
                 // walk backwards
                 std::cout << "pressed the " << c << " key\n";
                 walk_sideways = false;
-                step_length = -abs(step_length);
+                walk_dist = -fabs(walk_dist);
+                walk_type = walk_line;
                 break;
             case 'j':
                 // sidestep right
                 std::cout << "pressed the " << c << " key\n";
                 walk_sideways = true;
-                step_length = abs(sidestep_length);
+                step_length = fabs(sidestep_length);
+                walk_type = walk_canned;
                 break;
             case 'l':
                 // sidestep left
                 std::cout << "pressed the " << c << " key\n";
                 walk_sideways = true;
-                step_length = -abs(sidestep_length);
+                step_length = -fabs(sidestep_length);
+                walk_type = walk_canned;
                 break;
         }
       }
@@ -614,19 +618,19 @@ int main(int argc, char** argv) {
 
   // the actual state
   ZMPWalkGenerator walker(hplus,
-			  ik_sense,
+                          ik_sense,
                           com_height,
                           zmp_jerk_penalty,
-			  zmpoff_x,
-			  zmpoff_y,
+                          zmpoff_x,
+                          zmpoff_y,
                           com_ik_ascl,
                           single_support_time,
                           double_support_time,
                           startup_time,
                           shutdown_time,
                           foot_liftoff_z,
-			  lookahead_time
-    );
+                          lookahead_time);
+
   ZMPReferenceContext initContext;
 
   // helper variables and classes
@@ -686,11 +690,11 @@ int main(int argc, char** argv) {
     double circle_max_step_angle = M_PI / 12.0; // maximum angle between steps TODO: FIXME: add to cmd line??
   
     footprints = walkCircle(walk_circle_radius,
-			    walk_dist,
-			    footsep_y,
-			    step_length,
-			    circle_max_step_angle,
-			    initLeftFoot);
+                walk_dist,
+                footsep_y,
+                step_length,
+                circle_max_step_angle,
+                initLeftFoot);
 
     break;
 
@@ -698,9 +702,10 @@ int main(int argc, char** argv) {
 
   case walk_line: {
 
-    footprints = walkLine(walk_dist, footsep_y,
-			  step_length,
-			  initLeftFoot);
+    footprints = walkLine(walk_dist,
+                          footsep_y,
+                          step_length,
+                          initLeftFoot);
 
     break;
 
@@ -716,28 +721,18 @@ int main(int argc, char** argv) {
 
  
    for (size_t i=0; i<max_step_count; ++i) {// FIXME original
-//   for (size_t i=0; i<max_step_count + end_steps; ++i) {
       bool is_left = i%2;
       if (walk_sideways && step_length < 0) { is_left = !is_left; }
       int swing = is_left ? 0 : 1;
       int stance = 1-swing;
       if (walk_sideways) {
-	    cur_y[swing] -= step_length;
+        cur_y[swing] -= step_length;
       } else {
-	    if (i + 1 == max_step_count) { //FIXME original
-	      cur_x[swing] = cur_x[stance];
-	    } else {
-	      cur_x[swing] = cur_x[stance] + 0.5*step_length;
-/*
-	if (i + 1 == max_step_count + end_steps) {
-	  cur_x[swing] = cur_x[stance]; // final step to bring feet together
-	} else if (i > max_step_count && i < max_step_count + end_steps - 1) { // first time i will be max_step_count
-        cur_x[swing] = cur_x[stance] + (0.5/(double)end_steps) * (double)(max_step_count + end_steps - i) * step_length; // last steps, incrementally smaller
-    } else if (i>=0 && i<start_steps) { // add small & increasing steps at the beginning
-        cur_x[swing] = cur_x[stance] + (0.5/(double)start_steps) * (double)(i+1) * step_length;
-    } else {
-	  cur_x[swing] = cur_x[stance] + 0.5*step_length; // all steps up to step "max_step_count"
-*/	    }
+        if (i + 1 == max_step_count) { //FIXME original
+          cur_x[swing] = cur_x[stance];
+        } else {
+          cur_x[swing] = cur_x[stance] + 0.5*step_length;
+        }
       }
       footprints.push_back(Footprint(cur_x[swing], cur_y[swing], 0, is_left));
     }
@@ -757,7 +752,7 @@ int main(int argc, char** argv) {
   // and then build up the walker
 
 
-//  walker.stayDogStay(startup_time * ZMP_TRAJ_FREQ_HZ);
+  walker.stayDogStay(startup_time * ZMP_TRAJ_FREQ_HZ);
 
 
   for(std::vector<Footprint>::iterator it = footprints.begin(); it != footprints.end(); it++) {

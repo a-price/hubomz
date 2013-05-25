@@ -4,8 +4,6 @@
 #include <mzcommon/MzGlutApp.h>
 #include <mzcommon/TimeUtil.h>
 #include <getopt.h>
-// for keyboard interrupt
-#include <termio.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -40,6 +38,13 @@ public:
   HuboPlus& hplus;
   KinBody& kbody;
 
+  ach_channel_t zmp_chan;
+  zmp_traj_t nextTrajectory, curTrajectory;
+  TrajVector curGuiTrajectory;
+  bool nextTrajReady;
+  bool useNextTraj;
+  size_t trajNumber;
+
   HuboPlus::KState state;
   vec3 forces[2];
   vec3 torques[2];
@@ -49,8 +54,6 @@ public:
 
   Transform3Array xforms;
 
-  const TrajVector& traj;
-  
   size_t cur_index;
 
   int stance_foot;
@@ -60,14 +63,20 @@ public:
 
   bool animating;
 
-  ZmpDemo(int argc, char** argv, HuboPlus& h, const TrajVector &t):
+  ZmpDemo(int argc, char** argv, HuboPlus &h):
     MzGlutApp(argc, argv, GLUT_DOUBLE | GLUT_DEPTH | GLUT_RGB | GLUT_MULTISAMPLE),
     hplus(h),
     kbody(h.kbody),
-    traj(t),
     cur_index(-1)
 
   {
+    ach_status r = ach_open( &zmp_chan, HUBO_CHAN_ZMP_TRAJ_NAME, NULL );
+    fprintf(stdout, "AchOpen: %s \n", ach_result_to_string(r));
+
+    trajNumber = 0;
+    checkForNewTraj();
+    nextTrajReady = false;
+    useNextTraj = false;
 
     initWindowSize(640, 480);
     createWindow("Hubo ZMP Walking");
@@ -99,27 +108,124 @@ public:
 
   }
 
-  virtual void checkForNewTraj() {
-    ach_channel_t zmp_chan;
-    ach_open( &zmp_chan, HUBO_CHAN_ZMP_TRAJ_NAME, NULL );
-    zmp_traj_t curTrajectory, nextTrajectory;
-    zmpgui_traj_t curGuiTrajectory, nextGuiTrajectory;
+  /**
+  * @function: validateOutputData(TrajVector& traj)
+  * @brief: validation of joint angle output trajectory data
+  * @return: void
+  */
+  bool validateTrajSwapIn(double prevAngles[HUBO_JOINT_COUNT], double newAngles[HUBO_JOINT_COUNT]) {
+      const double dt = 1.0/TRAJ_FREQ_HZ;
+      double maxJointVel=0;
+      double jointVel;
+      bool OK = true;
+      const double jointVelTol = 6.0; // radians/s
+      for (int j=0; j<HUBO_JOINT_COUNT; j++) {   
+        jointVel = (prevAngles[j] - newAngles[j])/dt;
+        if (jointVel > jointVelTol) {
+          std::cerr << "change in joint " << jointNames[j] << " is larger than " << jointVelTol << "(" << jointVel << ")\n";
+          OK = false;
+        }   
+        if (jointVel > maxJointVel) maxJointVel = jointVel;
+      }   
+      std::cerr << "maxJntVel: " << maxJointVel << std::endl;
+      return OK; 
+  }
 
-    memset( &curTrajectory, 0, sizeof(curTrajectory) );
-    memset( &nextTrajectory, 0, sizeof(nextTrajectory) );
+  /**
+   * @function: convertToGuiTraj()
+   * @brief: converts the traj in the struct from
+   * a c-array of zmp_element_t to an std::vector
+   * of zmp_element_t
+  */
+  virtual void convertToGuiTraj(zmp_traj_t &zmpTraj, TrajVector &zmpGuiTraj)
+  {
+    zmpGuiTraj.clear();
+    for(size_t i=0; i<zmpTraj.count; i++)
+      zmpGuiTraj.push_back(zmpTraj.traj[i]);
+  }
 
-    memset( &curGuiTrajectory, 0, sizeof(curGuiTrajectory) );
-    memset( &nextGuiTrajectory, 0, sizeof(nextGuiTrajectory) );
+  /**
+   * @function: checkForNewTraj()
+   * @brief: waits for new walk trajectory
+  */
+  virtual void checkForNewTraj()
+  {
     size_t fs;
+    std::cout << "Getting new trajectory\n";
+    memset( &curTrajectory, 0, sizeof(curTrajectory) );
+    while((curTrajectory.count <= 0 || curTrajectory.walkState == STOP) && curTrajectory.trajNumber <= trajNumber)
+    {
+      memset( &curTrajectory, 0, sizeof(curTrajectory) );
+      ach_status r = ach_get( &zmp_chan, &curTrajectory, sizeof(curTrajectory), &fs, NULL, ACH_O_LAST );
+    }
+    std::cout << "Got Initial Traj # " << curTrajectory.trajNumber << std::endl;
+    // convert new trajectory to gui trajectory
+    convertToGuiTraj(curTrajectory, curGuiTrajectory);
+    cur_index = 0;
+    animating = true;
+    nextTrajReady = false;
+  }
 
-    ach_get( &zmp_chan, &curTrajectory, sizeof(curTrajectory), &fs, NULL, ACH_O_LAST );
+  virtual void checkForNextTraj()
+  {
+    if(nextTrajReady == false)
+    {
+      // clear nextTrajectory contents
+      memset( &nextTrajectory, 0, sizeof(nextTrajectory) );
+      size_t fs;
 
-    std::cout << "Got trajectory!\n";
+      // get from channel
+      ach_status r = ach_get( &zmp_chan, &nextTrajectory, sizeof(nextTrajectory), &fs, NULL, ACH_O_LAST );
+      if((r == ACH_OK || r == ACH_MISSED_FRAME) && nextTrajectory.trajNumber > 0)
+      {
+        fprintf(stdout, "AchGet: %s \n", ach_result_to_string(r));
+        std::cout << "Got trajectory # " << nextTrajectory.trajNumber << "\n";
+      }
 
-    // convert c-array into std::vector
-    int N = sizeof(curTrajectory.traj)/sizeof(curTrajectory.traj[0]);
-    for(int i=0; i<N; i++)
-      curGuiTrajectory.traj.push_back(curTrajectory.traj[i]);
+      if(nextTrajectory.walkTransition == WALK_TO_STOP)
+      {
+        useNextTraj = false;
+        nextTrajReady = true;
+      }
+
+      // if we received a next trajectory
+      if(nextTrajectory.trajNumber > curTrajectory.trajNumber)
+      {
+        // if start tick has been passed or switching walk type indicate it, otherwise indicate that we can use it
+        if(cur_index > nextTrajectory.startTick || nextTrajectory.walkTransition == SWITCH_WALK)
+        {
+          std::cout << "Won't use next traj " << nextTrajectory.trajNumber << "\n";
+          useNextTraj = false;
+          nextTrajReady = true;
+        }
+        else
+        {
+          std::cout << "Going to use next traj # " << nextTrajectory.trajNumber << "\n";
+          useNextTraj = true;
+          nextTrajReady = true;
+        }
+      }
+    }
+
+    if(useNextTraj == true && nextTrajectory.startTick == cur_index)
+    {
+      bool OK;
+      std::cout << "validating\n";
+      OK = validateTrajSwapIn(nextTrajectory.traj[0].angles, curTrajectory.traj[cur_index].angles);
+      if(OK == false)
+      {
+        std::cout << "Not swapping in next trajectory. Finishing current trajectory\n";
+        nextTrajReady = true;
+      }
+      else
+      {
+        std::cout << "Swapping in next trajectory # " << nextTrajectory.trajNumber << ".\n";
+        curTrajectory = nextTrajectory;
+        convertToGuiTraj(curTrajectory, curGuiTrajectory);
+        cur_index = 0;
+        nextTrajReady = false;
+      }
+    }
   }
 
   // set state to initial trajectory tick joint values
@@ -127,12 +233,10 @@ public:
 
     cur_index = 0; 
     stance_foot_xform = Transform3();
-    stance_foot = stance_foot_table[traj[0].stance];
-    setStateFromTraj(traj[0]);
+    stance_foot = stance_foot_table[curGuiTrajectory[0].stance];
+    setStateFromTraj(curGuiTrajectory[0]);
   }
     
-  
-  
   void setStateFromTraj(const zmp_traj_element_t& cur) {
 
     for (size_t hi=0; hi<hplus.huboJointOrder.size(); ++hi) {
@@ -152,8 +256,8 @@ public:
       actualComVel[a] = cur.com[a][1];
       actualComAcc[a] = cur.com[a][2];
       for (int f=0; f<2; ++f) {
-	forces[1-f][a] = cur.forces[f][a];
-	torques[1-f][a] = cur.torque[f][a]; // TODO: FIXME: pluralization WTF?
+	      forces[1-f][a] = cur.forces[f][a];
+	      torques[1-f][a] = cur.torque[f][a]; // TODO: FIXME: pluralization WTF?
       }
     }
 //    std::cerr << "current index: " << cur_index << "/" << traj.size() << ", stance=" << cur.stance << "\n";  
@@ -162,27 +266,33 @@ public:
   virtual void deltaCurrent(int delta) {
 
     int dmin = -cur_index;
-    int dmax = traj.size()-1-cur_index;
+    int dmax = curGuiTrajectory.size()-1-cur_index;
     delta = std::max(dmin, std::min(delta, dmax));
     if (!delta) { return; }
 
     int dd = delta < 0 ? -1 : 1;
     delta *= dd;
     assert(delta > 0);
-    std::cout << "entering forloop. delta = " << delta << std::endl;
     for (int i=0; i<delta; ++i) {
-
       cur_index += dd;
+      if(useNextTraj == false && nextTrajReady == true)
+      {
+        checkForNewTraj();
+      }
+      else
+      {
+        checkForNextTraj();
+      }
 
+      
       // see if the stance foot has swapped
-      int new_stance_foot = stance_foot_table[traj[cur_index].stance];
+      int new_stance_foot = stance_foot_table[curGuiTrajectory[cur_index].stance];
 
       if (new_stance_foot != stance_foot) {
         stance_foot = new_stance_foot;
         stance_foot_xform = state.xform() * kbody.manipulatorFK(xforms, stance_foot);
       }
-      std::cout << "cur_index = " << cur_index << std::endl;
-      setStateFromTraj(traj[cur_index]);
+      setStateFromTraj(curGuiTrajectory[cur_index]);
     }
   }
 
@@ -266,14 +376,13 @@ public:
   virtual void timer(int value) {
 
     if (animating) {
-      if (cur_index+1 < traj.size()) { 
+      if (cur_index+1 < curGuiTrajectory.size()) { 
 	    deltaCurrent(5); // this set the display speed
 	    glutPostRedisplay();
       } else {
-	    animating = false;
+        checkForNewTraj();
       }
     }
-
     setTimer(40, 0);    
   }
 
@@ -361,62 +470,44 @@ void validateOutputData(TrajVector& traj) {
 }
 
 
+
 int main(int argc, char** argv)
 {
   // load in openRave hubo model
   HuboPlus hplus("../myhubo.kinbody.xml");
 
-  ach_channel_t zmp_chan;
-  ach_open( &zmp_chan, HUBO_CHAN_ZMP_TRAJ_NAME, NULL );
-
-  zmp_traj_t curTrajectory, nextTrajectory;
-  memset( &curTrajectory, 0, sizeof(curTrajectory) );
-  memset( &nextTrajectory, 0, sizeof(nextTrajectory) );
-
-  zmpgui_traj_t curGuiTrajectory, nextGuiTrajectory;
-  memset( &curGuiTrajectory, 0, sizeof(curGuiTrajectory) );
-  memset( &nextGuiTrajectory, 0, sizeof(nextGuiTrajectory) );
-  size_t fs;
-
-  std::cout << "Getting trajectory from ach\n";
-  while(curTrajectory.count <= 0)
-    ach_get( &zmp_chan, &curTrajectory, sizeof(curTrajectory), &fs, NULL, ACH_O_WAIT );
-
-  std::cout << "Got trajectory!\n";
-
-  // convert c-array into std::vector
-  int N = sizeof(curTrajectory.traj)/sizeof(curTrajectory.traj[0]);
-  for(int i=0; i<N; i++)
-    curGuiTrajectory.traj.push_back(curTrajectory.traj[i]);
-
-  ZmpDemo demo(argc, argv, hplus, curGuiTrajectory.traj);
+  ZmpDemo demo(argc, argv, hplus);
 
   std::cout << "running demo\n";
   demo.run();
-  std::cout << "finish\n";
   return 0;
 }
 
 // Local Variables:
 // c-basic-offset: 2
 // End:
-//  bool nextTrajReady = false;
-//  bool useNextTraj = false;
-//  walkState_t walkState = STOP;
-//  walkTransition_t walkTransition = STAY_STILL;
 
-  // if we don't have a new trajectory or we're told to stop,
-  // then keep checking for walk trajectory
-//  while(curTrajectory.count <= 0 || walkState == STOP)
-//  {
-//      memset( &curTrajectory, 0, sizeof(curTrajectory) );
-//      ach_get( &zmp_chan, &curTrajectory, sizeof(curTrajectory), &fs, NULL, ACH_O_LAST );
-//  }
+/*
+  ach_channel_t zmp_chan;
+  ach_status r = ach_open( &zmp_chan, HUBO_CHAN_ZMP_TRAJ_NAME, NULL );
+  fprintf(stdout, "%s \n", ach_result_to_string(r));
 
-  // once we get a trajectory, check if we need to stabelize first or if we
-  // can just keep walking, and then execute walk trajectory if not stopped
-//  if( curTrajectory.walkTransition == SWITCH_WALK )
-//  {
-//  }
+  zmp_traj_t curTrajectory;
+  memset( &curTrajectory, 0, sizeof(curTrajectory) );
 
+  zmpgui_traj_t curGuiTrajectory, nextGuiTrajectory;
+  memset( &curGuiTrajectory, 0, sizeof(curGuiTrajectory) );
+  size_t fs;
+
+  std::cout << "Getting trajectory from ach\n";
+  while(curTrajectory.count <= 0)
+    r =  ach_get( &zmp_chan, &curTrajectory, sizeof(curTrajectory), &fs, NULL, ACH_O_WAIT );
+  fprintf(stdout, "%s \n", ach_result_to_string(r));
+  std::cout << "Got trajectory # " << curTrajectory.trajNumber << "! Count = " << curTrajectory.count << "\n";
+
+  // convert c-array into std::vector
+  int N = sizeof(curTrajectory.traj)/sizeof(curTrajectory.traj[0]);
+  for(int i=0; i<N; i++)
+    curGuiTrajectory.traj.push_back(curTrajectory.traj[i]);
+*/
 
