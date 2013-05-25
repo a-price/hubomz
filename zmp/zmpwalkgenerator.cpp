@@ -156,8 +156,8 @@ void ZMPWalkGenerator::addFootstep(const Footprint& fp) {
     //
     //  dist for single support should be distance SWING FOOT moves
     //  that also includes change in theta, and step height
-    size_t double_ticks = timer.compute_double(dist);
-    size_t single_ticks = timer.compute_single(dist, dist_theta, step_height);
+    size_t double_ticks = timer.compute_double(fabs(dist));
+    size_t single_ticks = timer.compute_single(fabs(dist), dist_theta, step_height);
 
     //size_t double_ticks = TRAJ_FREQ_HZ * min_double_support_time;
     //size_t single_ticks = TRAJ_FREQ_HZ * min_single_support_time;

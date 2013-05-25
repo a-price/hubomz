@@ -115,7 +115,7 @@ public:
       double relerr = (PPnew-PP).norm() / PPnew.norm();
       PP = PPnew;
       if (relerr < 1e-10) {
-	std::cerr << "DARE solver converged after " << i << " iterations.\n";
+	//std::cerr << "DARE solver converged after " << i << " iterations.\n";
 	converged = true;
 	break;
       }
