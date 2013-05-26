@@ -259,13 +259,16 @@ int main(int argc, char** argv)
   walk_type = walk_line;
   walk_circle_radius = 5.0;
   walk_dist = .3;
-  max_step_count = 20;
   step_length = 0.1;
+  
+  sidewalk_dist = 0.06;
+  sidestep_length = 0.01;
+  
+  max_step_count = 20;
 
   footstep_y = 0.0885; // half of horizontal separation distance between feet
   foot_liftoff_z = 0.04; // foot liftoff height
 
-  sidestep_length = 0.01;
   walk_sideways = false;
 
   com_height = 0.5; // height of COM above ANKLE
@@ -400,7 +403,7 @@ int main(int argc, char** argv)
   // helper variables and classes
   const KinBody& kbody = hplus.kbody;
   const JointLookup& jl = hplus.jl;
-  double deg = M_PI/180; // for converting from degrees to radians
+  double deg = M_PI/180.0; // for converting from degrees to radians
 
   // fill in the kstate
   initContext.state.body_pos = vec3(0, 0, 0.85);
@@ -461,6 +464,9 @@ int main(int argc, char** argv)
             newCommand = true;
             sortWalkParameters(cmd);
         }
+        
+        if( walk_dist == 0 )
+            cmd.cmd_state = STOP;
 
         if( newCommand && cmd.cmd_state != walkState )
         {
@@ -527,32 +533,16 @@ int main(int argc, char** argv)
             switch(walkState)
             {
                 case WALKING_FORWARD:
-                    std::cout << "still walking forward\n";
-                    printStopped = true;
-                    walkTransition = KEEP_WALKING;
-                    break;
                 case WALKING_BACKWARD:
-                    std::cout << "still walking forward\n";
-                    printStopped = true;
-                    walkTransition = KEEP_WALKING;
-                    break;
                 case SIDESTEPPING_LEFT:
-                    std::cout << "still sidestepping left\n";
-                    printStopped = true;
-                    walkTransition = KEEP_WALKING;
-                    break;
                 case SIDESTEPPING_RIGHT:
-                    std::cout << "still sidestepping right\n";
-                    printStopped = true;
+                    std::cout << "Keep walking\n";
                     walkTransition = KEEP_WALKING;
                     break;
                 case STOP:
-                    if(printStopped == true)
-                    {
-                        printStopped = false;
-//                        std::cout << "still stopped\n";
-                    }
                     walkTransition = STAY_STILL;
+                    break;
+                default:
                     break;
             }
             break; // TODO: Check on this
@@ -591,15 +581,12 @@ int main(int argc, char** argv)
         }
       }
       curTrajNumber++;
-      std::cout << "CURRENT TRAJECTORY #: " << curTrajNumber << "\n";
       //std::cout << "\nLeft Foot x,y: " << initContext.feet[0].translation().x() << ", " << initContext.feet[0].translation().y()
       //          << "\nRight Foot x,y: " << initContext.feet[1].translation().x() << ", " << initContext.feet[1].translation().y()
       //          << std::endl;
       // apply COM IK for init context
       walker.applyComIK(initContext);
-
       walker.initialize(initContext);
-      
       //////////////////////////////////////////////////////////////////////
       // build ourselves some footprints
 
@@ -614,13 +601,13 @@ int main(int argc, char** argv)
       }
 
       std::vector<Footprint> footprints;
-
       switch (walk_type)
       {
         case walk_circle:
         {
           int sign = walkState == WALKING_BACKWARD ? -1 : 1; 
           double circle_max_step_angle = M_PI / 12.0; // maximum angle between steps TODO: FIXME: add to cmd line??
+          std::cout << "Getting Footsteps" << std::endl;
           footprints = walkCircle(walk_circle_radius,
                                   sign*walk_dist,
                                   footstep_y,
@@ -631,7 +618,7 @@ int main(int argc, char** argv)
         }
         case walk_line:
         {
-          int sign = walkState == WALKING_BACKWARD ? -1 : 1; 
+          int sign = walkState == WALKING_BACKWARD ? -1 : 1;
           footprints = walkLine(sign*walk_dist,
                                 footstep_y,
                                 step_length,
@@ -652,6 +639,7 @@ int main(int argc, char** argv)
           break;
         }
       }
+      
 
 //      if (footprints.size() > max_step_count)
 //      {
@@ -663,7 +651,9 @@ int main(int argc, char** argv)
 
       // if we are walking from a standstill, add startup ticks where the zmp is stationary
       if(walkTransition != KEEP_WALKING)
+      {
         walker.stayDogStay(startup_time * ZMP_TRAJ_FREQ_HZ);
+      }
 
       curTrajStartTick = startTick;
 
@@ -688,7 +678,6 @@ int main(int argc, char** argv)
         walker.addFootstep(*it);
         footprintIndex++;
       }
-
       // add shutdown ticks where the zmp is stationary
       walker.stayDogStay(shutdown_time * ZMP_TRAJ_FREQ_HZ);
       

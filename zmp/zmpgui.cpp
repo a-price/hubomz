@@ -96,7 +96,8 @@ public:
 
     quadric = gluNewQuadric();
 
-    animating = false;
+//    animating = false;
+    animating = true;
 
     kbody.compileDisplayLists();
 
@@ -156,7 +157,7 @@ public:
     while((curTrajectory.count <= 0 || curTrajectory.walkState == STOP) && curTrajectory.trajNumber <= trajNumber)
     {
       memset( &curTrajectory, 0, sizeof(curTrajectory) );
-      ach_status r = ach_get( &zmp_chan, &curTrajectory, sizeof(curTrajectory), &fs, NULL, ACH_O_LAST );
+      ach_status r = ach_get( &zmp_chan, &curTrajectory, sizeof(curTrajectory), &fs, NULL, ACH_O_WAIT );
     }
     std::cout << "Got Initial Traj # " << curTrajectory.trajNumber << std::endl;
     // convert new trajectory to gui trajectory
@@ -175,7 +176,7 @@ public:
       size_t fs;
 
       // get from channel
-      ach_status r = ach_get( &zmp_chan, &nextTrajectory, sizeof(nextTrajectory), &fs, NULL, ACH_O_LAST );
+      ach_status r = ach_get( &zmp_chan, &nextTrajectory, sizeof(nextTrajectory), &fs, NULL, ACH_O_WAIT );
       if((r == ACH_OK || r == ACH_MISSED_FRAME) && nextTrajectory.trajNumber > 0)
       {
         fprintf(stdout, "AchGet: %s \n", ach_result_to_string(r));

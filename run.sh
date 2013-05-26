@@ -2,6 +2,7 @@
 
 # Name of ach channel to send zmp trajectory over
 HUBO_ZMP_CHAN='hubo-zmp-traj'
+ZMP_CMD_CHAN='hubo-zmp-cmd'
 
 # Opens the ach channel HUBO_ZMP_CHAN,
 # Start the achd daemon to push the zmp trajectory to HUBO
@@ -27,6 +28,7 @@ AchOpen()
 {
     echo 'Opening ach channel'
     sudo ach -1 -C $HUBO_ZMP_CHAN -m 3 -n 1000000 -o 666
+    sudo ach -1 -C $ZMP_CMD_CHAN -m 10 -n 1000 -o 666
 }
 
 # Closes the HUBO_ZMP_CHAN channel
@@ -34,6 +36,7 @@ AchClose()
 {
     echo 'Closing ach channel'
     sudo ach -U $HUBO_ZMP_CHAN
+    sudo ach -U $ZMP_CMD_CHAN
 }
 
 AchRestart()
