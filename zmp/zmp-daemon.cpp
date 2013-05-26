@@ -188,8 +188,9 @@ int main(int argc, char** argv)
   double walk_circle_radius = 1e13;
   double walk_dist = 0.1;
   double step_length = 0.1;
+  double circle_max_step_angle = 3.14;
 
-  double sidestep_dist = 0.06;
+  double sidewalk_dist = 0.06;
   double sidestep_length = 0.03;
 
   size_t max_step_count = 20;
@@ -395,21 +396,31 @@ int main(int argc, char** argv)
                   // walk forward
                   walkState = WALKING_FORWARD;
                   walkTransition = SWITCH_WALK;
-                  walk_type = walk_line;
+                  walk_type = walk_circle;
+                  walk_circle_radius = 1e13;
+                  circle_max_step_angle = 3.14;
                   std::cout << "\nWALK FORWARD\n";
-                  prevKey = key;
                   ready = true;
-                  startTick = 0;
+                  if(prevKey != 'u' && prevKey != 'o')
+                    startTick = 0;
+                  else
+                    walkTransition == KEEP_WALKING;
+                  prevKey = key;
                   break;
               case 'm':
                   // walk backwards
                   walkState = WALKING_BACKWARD;
                   walkTransition = SWITCH_WALK;
-                  walk_type = walk_line;
+                  walk_type = walk_circle;
+                  walk_circle_radius = 1e13;
+                  circle_max_step_angle = 3.14;
                   std::cout << "\nWALK BACKWARD\n";
-                  prevKey = 'm';
                   ready = true;
-                  startTick = 0;
+                  if(prevKey != 'u' && prevKey != 'o')
+                    startTick = 0;
+                  else
+                    walkTransition == KEEP_WALKING;
+                  prevKey = key;
                   break;
               case 'j':
                   // sidestep left
@@ -418,7 +429,7 @@ int main(int argc, char** argv)
                   initContext.stance = DOUBLE_RIGHT;
                   std::cout << "\nSIDESTEP LEFT\n";
                   walk_type = walk_sidestep;
-                  sidestep_dist = abs(sidestep_dist);
+                  sidewalk_dist = abs(sidewalk_dist);
                   prevKey = 'j';
                   ready = true;
                   startTick = 0;
@@ -430,7 +441,7 @@ int main(int argc, char** argv)
                   initContext.stance = DOUBLE_LEFT;
                   std::cout << "\nSIDESTEP RIGHT\n";
                   walk_type = walk_sidestep;
-                  sidestep_dist = -abs(sidestep_dist);
+                  sidewalk_dist = -abs(sidewalk_dist);
                   prevKey = 'l';
                   ready = true;
                   startTick = 0;
@@ -444,21 +455,47 @@ int main(int argc, char** argv)
                   ready = true;
                   startTick = 0;
                   break;
-/*              case 'u':
-                  // turn more left
-                  if(walk_circle_radius > 100)
-                    walk_circle_radius -= 100;
-                  else
-                    walk_circle_radius -= 10;
-                  walk_type = walk_circle;
-                  break;
-              case 'o':
-                  // turn more right
-                  break;
-*/              default:
+              default:
                   break;
           }
         }
+        else if(key == 'u' || key == 'o')
+        {
+          switch(key)
+          {
+            case 'u':
+              // turn more left
+              std::cout << "\nTURN LEFT\n";
+              walk_type = walk_circle;
+              if(walk_circle_radius < -20)
+                walk_circle_radius = 1e13;
+              else if(walk_circle_radius > 20)
+                walk_circle_radius = 20;
+              walk_circle_radius -= 1;
+              if(walk_circle_radius < 1 && walk_circle_radius > -1)
+                walk_circle_radius = 1;
+              circle_max_step_angle = M_PI/12;
+              prevKey = 'u';
+              break;
+            case 'o':
+              // turn more right
+              std::cout << "\nTURN RIGHT\n";
+              walk_type = walk_circle;
+              if(walk_circle_radius > 20)
+                walk_circle_radius = -1e13;
+              else if(walk_circle_radius < -20)
+                walk_circle_radius = -20;
+              walk_circle_radius += 1;
+              if(walk_circle_radius > -1 && walk_circle_radius < 1)
+                walk_circle_radius = -1;
+              circle_max_step_angle = M_PI/12;
+              prevKey = 'o';
+              break;
+            default:
+              break;
+          }
+        }
+
         // if no new key was pressed keep doing what we were doing before
         else
         {
@@ -473,32 +510,16 @@ int main(int argc, char** argv)
         switch(walkState)
         {
           case WALKING_FORWARD:
-            //std::cout << "still walking forward\n";
-            printStopped = true;
-            walkTransition = KEEP_WALKING;
-            break;
           case WALKING_BACKWARD:
-            //std::cout << "still walking backward\n";
-            printStopped = true;
-            walkTransition = KEEP_WALKING;
-            break;
           case SIDESTEPPING_LEFT:
-            //std::cout << "still sidestepping left\n";
-            printStopped = true;
-            walkTransition = KEEP_WALKING;
-            break;
           case SIDESTEPPING_RIGHT:
-            //std::cout << "still sidestepping right\n";
-            printStopped = true;
+            std::cout << "keep walking\n";
             walkTransition = KEEP_WALKING;
             break;
           case STOP:
-            if(printStopped == true)
-            {
-              printStopped = false;
-              //std::cout << "still stopped\n";
-            }
             walkTransition = STAY_STILL;
+            break;
+          default:
             break;
         }
         break;
@@ -507,8 +528,7 @@ int main(int argc, char** argv)
 
     if(curTrajNumber > 1 && walkState == STOP && walkTransition == WALK_TO_STOP)
     {
-      //std::cout << "Telling walker we're stopping\n";
-      //memset( &trajectory, 0, sizeof(trajectory) );
+      std::cout << "Telling walker we're stopping\n";
       curTrajNumber++;
       trajectory.walkState = STOP;
       trajectory.walkTransition = WALK_TO_STOP;
@@ -565,8 +585,8 @@ int main(int argc, char** argv)
       {
         case walk_circle:
         {
+          std::cout << "Walk Radius: " << walk_circle_radius << "\n";
           int sign = walkState == WALKING_BACKWARD ? -1 : 1; 
-          double circle_max_step_angle = M_PI / 12.0; // maximum angle between steps TODO: FIXME: add to cmd line??
           footprints = walkCircle(walk_circle_radius,
                                   sign*walk_dist,
                                   footsep_y,
@@ -586,7 +606,7 @@ int main(int argc, char** argv)
         }
         case walk_sidestep:
         {
-          footprints = sidestep(sidestep_dist,
+          footprints = sidestep(sidewalk_dist,
                                 footsep_y,
                                 sidestep_length,
                                 initFoot);

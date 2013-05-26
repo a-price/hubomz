@@ -105,6 +105,7 @@ public:
     setTimer(40, 0);
     
     resetCurrent();
+    animating = true;
 
   }
 
@@ -168,8 +169,6 @@ public:
 
   virtual void checkForNextTraj()
   {
-    if(nextTrajReady == false)
-    {
       // clear nextTrajectory contents
       memset( &nextTrajectory, 0, sizeof(nextTrajectory) );
       size_t fs;
@@ -205,10 +204,10 @@ public:
           nextTrajReady = true;
         }
       }
-    }
+  }
 
-    if(useNextTraj == true && nextTrajectory.startTick == cur_index)
-    {
+  virtual void swapInTraj()
+  {  
       bool OK;
       std::cout << "validating\n";
       OK = validateTrajSwapIn(nextTrajectory.traj[0].angles, curTrajectory.traj[cur_index].angles);
@@ -225,7 +224,6 @@ public:
         cur_index = 0;
         nextTrajReady = false;
       }
-    }
   }
 
   // set state to initial trajectory tick joint values
@@ -275,15 +273,10 @@ public:
     assert(delta > 0);
     for (int i=0; i<delta; ++i) {
       cur_index += dd;
-      if(useNextTraj == false && nextTrajReady == true)
-      {
-        checkForNewTraj();
-      }
-      else
-      {
+      if(nextTrajReady == false)
         checkForNextTraj();
-      }
-
+      if(useNextTraj == true && nextTrajectory.startTick == cur_index)
+        swapInTraj();
       
       // see if the stance foot has swapped
       int new_stance_foot = stance_foot_table[curGuiTrajectory[cur_index].stance];

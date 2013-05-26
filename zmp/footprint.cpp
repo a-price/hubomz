@@ -74,6 +74,7 @@ vector<Footprint> walkCircle(double radius,
     assert(max_step_length > 0);
     assert(max_step_angle >= -M_PI);
     assert(max_step_angle < M_PI);
+    if(radius == 0) radius = 1e13;
 
     bool left_is_stance_foot = stance_foot.is_left;
     int sign = distance < 0? -1 : 1;
