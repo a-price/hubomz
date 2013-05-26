@@ -24,7 +24,7 @@ You must install cmake to build the software as well.  To build:
     cd /path/to/hubomz
     mkdir build
     cd build
-    cmake .. 
+    cmake .. -DCMAKE_BUILD_TYPE=Release
     make
 
 To run the software, you will need an OpenRAVE model of the Hubo plus.
@@ -44,7 +44,11 @@ directory of this repository.
 Now, you can run the software, for instance:
 
     cd /path/to/hubomz/build
-    ./walkdemo ../myhubo.kinbody.xml
+    ./zmpdemo -g ../myhubo.kinbody.xml
+    
+On the mac, instead run
+
+    ./zmpdemo.app/Contents/MacOS/zmpdemo -g ../myhubo.kinbody.xml
 
 
 Tests

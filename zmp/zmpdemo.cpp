@@ -491,6 +491,7 @@ ZMPWalkGenerator::ik_error_sensitivity getiksense(const std::string& s)
 	}
 }
 
+<<<<<<< HEAD
 int main(int argc, char** argv)
 {
 
@@ -498,6 +499,244 @@ int main(int argc, char** argv)
 	{
 		usage(std::cerr);
 		return 1;
+=======
+int main(int argc, char** argv) {
+
+  if (argc < 2) {
+    usage(std::cerr);
+    return 1;
+  }
+
+
+  bool show_gui = false;
+  bool use_ach = false;
+
+  walktype walk_type = walk_canned;
+  double walk_circle_radius = 5.0;
+  double walk_dist = 20;
+
+  double footsep_y = 0.085; // half of horizontal separation distance between feet
+  double foot_liftoff_z = 0.05; // foot liftoff height
+
+  double step_length = 0.05;
+  bool walk_sideways = false;
+
+  double com_height = 0.48; // height of COM above ANKLE
+  double com_ik_ascl = 0;
+
+  double zmpoff_y = 0; // lateral displacement between zmp and ankle
+  double zmpoff_x = 0;
+
+  double lookahead_time = 2.5;
+
+  double startup_time = 1.0;
+  double shutdown_time = 1.0;
+  double double_support_time = 0.05;
+  double single_support_time = 0.70;
+
+  size_t max_step_count = 4;
+
+  double zmp_jerk_penalty = 1e-8; // jerk penalty on ZMP controller
+
+  ZMPWalkGenerator::ik_error_sensitivity ik_sense = ZMPWalkGenerator::ik_strict;
+
+  const struct option long_options[] = {
+    { "show-gui",            no_argument,       0, 'g' },
+    { "use-ach",             no_argument,       0, 'A' },
+    { "ik-errors",           required_argument, 0, 'I' },
+    { "walk-type",           required_argument, 0, 'w' },
+    { "walk-distance",       required_argument, 0, 'D' },
+    { "walk-circle-radius",  required_argument, 0, 'r' },
+    { "max-step-count",      required_argument, 0, 'c' },
+    { "foot-separation-y",   required_argument, 0, 'y' },
+    { "foot-liftoff-z",      required_argument, 0, 'z' },
+    { "step-length",         required_argument, 0, 'l' },
+    { "walk-sideways",       no_argument,       0, 'S' },
+    { "com-height",          required_argument, 0, 'h' },
+    { "comik-angle-weight",  required_argument, 0, 'a' },
+    { "zmp-offset-y",        required_argument, 0, 'Y' },
+    { "zmp-offset-x",        required_argument, 0, 'X' },
+    { "lookahead-time",      required_argument, 0, 'T' },
+    { "startup-time",        required_argument, 0, 'p' },
+    { "shutdown-time",       required_argument, 0, 'n' },
+    { "double-support-time", required_argument, 0, 'd' },
+    { "single-support-time", required_argument, 0, 's' },
+    { "zmp-jerk-penalty",    required_argument, 0, 'R' },
+    { "help",                no_argument,       0, 'H' },
+    { 0,                     0,                 0,  0  },
+  };
+
+  const char* short_options = "gAI:w:D:r:c:y:z:l:Sh:a:Y:X:T:p:n:d:s:R:H";
+
+  int opt, option_index;
+
+
+  while ( (opt = getopt_long(argc, argv, short_options, long_options, &option_index)) != -1 ) {
+    switch (opt) {
+    case 'g': show_gui = true; break;
+    case 'A': use_ach = true; break;
+    case 'I': ik_sense = getiksense(optarg); break;
+    case 'w': walk_type = getwalktype(optarg); break;
+    case 'D': walk_dist = getdouble(optarg); break;
+    case 'r': walk_circle_radius = getdouble(optarg); break;
+    case 'c': max_step_count = getlong(optarg); break;
+    case 'y': footsep_y = getdouble(optarg); break;
+    case 'z': foot_liftoff_z = getdouble(optarg); break;
+    case 'l': step_length = getdouble(optarg); break;
+    case 'S': walk_sideways = true; break;
+    case 'h': com_height = getdouble(optarg); break;
+    case 'a': com_ik_ascl = getdouble(optarg); break;
+    case 'Y': zmpoff_y = getdouble(optarg); break;
+    case 'X': zmpoff_x = getdouble(optarg); break;
+    case 'T': lookahead_time = getdouble(optarg); break;
+    case 'p': startup_time = getdouble(optarg); break;
+    case 'n': shutdown_time = getdouble(optarg); break;
+    case 'd': double_support_time = getdouble(optarg); break;
+    case 's': single_support_time = getdouble(optarg); break;
+    case 'R': zmp_jerk_penalty = getdouble(optarg); break;
+    case 'H': usage(std::cout); exit(0); break;
+    default:  usage(std::cerr); exit(1); break;
+    }
+  }
+
+
+  const char* hubofile = 0;
+  while (optind < argc) {
+    if (!hubofile) {
+      hubofile = argv[optind++];
+    } else {
+      std::cerr << "Error: extra arguments on command line.\n\n";
+      usage(std::cerr);
+      exit(1);
+    }
+  }
+  if (!hubofile) { 
+    std::cerr << "Please supply a huboplus file!\n\n";
+    usage(std::cerr); 
+    exit(1); 
+  }
+
+  HuboPlus hplus(hubofile);
+
+
+  //////////////////////////////////////////////////////////////////////
+  // build initial state
+
+  // the actual state
+  ZMPWalkGenerator walker(hplus,
+			  ik_sense,
+                          com_height,
+                          zmp_jerk_penalty,
+			  zmpoff_x,
+			  zmpoff_y,
+                          com_ik_ascl,
+                          single_support_time,
+                          double_support_time,
+                          startup_time,
+                          shutdown_time,
+                          foot_liftoff_z,
+			  lookahead_time
+    );
+  ZMPReferenceContext initContext;
+
+  // helper variables and classes
+  const KinBody& kbody = hplus.kbody;
+  const JointLookup& jl = hplus.jl;
+  double deg = M_PI/180; // for converting from degrees to radians
+
+  // fill in the kstate
+  initContext.state.body_pos = vec3(0, 0, 0.85);
+  initContext.state.body_rot = quat();
+  initContext.state.jvalues.resize(kbody.joints.size(), 0.0);
+  initContext.state.jvalues[jl("LSR")] =  15*deg;
+  initContext.state.jvalues[jl("RSR")] = -15*deg;
+  initContext.state.jvalues[jl("LSP")] =  20*deg;
+  initContext.state.jvalues[jl("RSP")] =  20*deg;
+  initContext.state.jvalues[jl("LEP")] = -40*deg;
+  initContext.state.jvalues[jl("REP")] = -40*deg;
+  
+  // build and fill in the initial foot positions
+
+  Transform3 starting_location(quat::fromAxisAngle(vec3(0,0,1), 0));
+  initContext.feet[0] = Transform3(starting_location.rotation(), starting_location * vec3(0, footsep_y, 0));
+  initContext.feet[1] = Transform3(starting_location.rotation(), starting_location * vec3(0, -footsep_y, 0));
+
+  // fill in the rest
+  initContext.stance = DOUBLE_LEFT;
+  initContext.comX = Eigen::Vector3d(zmpoff_x, 0.0, 0.0);
+  initContext.comY = Eigen::Vector3d(0.0, 0.0, 0.0);
+  initContext.eX = 0.0;
+  initContext.eY = 0.0;
+  initContext.pX = 0.0;
+  initContext.pY = 0.0;
+
+  // apply COM IK for init context
+  walker.applyComIK(initContext);
+
+  /*
+  walker.traj.resize(1);
+  walker.refToTraj(initContext, walker.traj.back());
+  */
+
+
+  walker.initialize(initContext);
+
+  
+  //////////////////////////////////////////////////////////////////////
+  // build ourselves some footprints
+  
+  Footprint initLeftFoot = Footprint(initContext.feet[0], true);
+  /* Footprint initRightFoot = Footprint(initContext.feet[1], false); */
+
+  std::vector<Footprint> footprints;
+
+  switch (walk_type) {
+  case walk_circle: {
+
+    double circle_max_step_angle = M_PI / 12.0; // maximum angle between steps TODO: FIXME: add to cmd line??
+  
+    footprints = walkCircle(walk_circle_radius,
+			    walk_dist,
+			    footsep_y,
+			    step_length,
+			    circle_max_step_angle,
+			    initLeftFoot);
+
+    break;
+
+  }
+
+  case walk_line: {
+
+    footprints = walkLine(walk_dist, footsep_y,
+			  step_length,
+			  initLeftFoot);
+
+    break;
+
+  }
+
+  default: {
+
+    double cur_x[2] = { 0, 0 };
+    double cur_y[2] = { 0, 0 };
+
+    cur_y[0] =  footsep_y;
+    cur_y[1] = -footsep_y;
+    
+    for (size_t i=0; i<max_step_count; ++i) {
+      bool is_left = i%2;
+      if (walk_sideways && step_length < 0) { is_left = !is_left; }
+      int swing = is_left ? 0 : 1;
+      int stance = 1-swing;
+      if (walk_sideways) {
+	cur_y[swing] -= step_length;
+      } else {
+	if (i + 1 == max_step_count) {
+	  cur_x[swing] = cur_x[stance];
+	} else {
+	  cur_x[swing] = cur_x[stance] + 0.5*step_length;
+>>>>>>> 6dabe8f8e595d7f2fd822d9cd58dd629b763949f
 	}
 
 	bool show_gui = false;

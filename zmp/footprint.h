@@ -29,6 +29,8 @@ public:
   Transform3 getTransform3() const;
   void setTransform3(Transform3 transform);
 
+  Transform3 getMidTransform3(double width) const;
+
   friend ostream& operator<<(ostream& os, const Footprint& fp) {
     os << "x: " << fp.x() << "\ty: " << fp.y() << "\ttheta: " << fp.theta() << "\t " << (fp.is_left ? "Left" : "Right");
     return os;
@@ -39,12 +41,10 @@ public:
  * \fn walkLine
  * \brief Generates a foot plan for walking in a straight line (parallel to the robot's current orientation)
  */
-std::vector<Footprint> walkLine(double dist, /// The distance to walk in meters
+std::vector<Footprint> walkLine(double distance, /// The distance to walk in meters
                                 double width, /// The ground distance between the center of the robot to the center of a foot
                                 double max_step_length, /// The maximum allowed length the robot may step
-                                Footprint* init_left, /// The position the left foot starts in
-                                Footprint* init_right, /// The position the right foot starts in
-                                bool stance_handedness /// Which foot the robot will be starting off standing on
+                                Footprint stance_foot /// Foot we start from
   );
 
 /**
@@ -56,9 +56,31 @@ std::vector<Footprint> walkCircle(double radius, /// The radius of the circle to
                                   double width, /// The distance between the center of the robot and the center of a foot
                                   double max_step_length, /// The maximum HALF allowed length the robot may step
                                   double max_step_angle, /// The maximum HALF angle between successive steps
-                                  Footprint* init_left, /// The position the left foot starts in
-                                  Footprint* init_right, /// The position the right foot starts in
-                                  bool stance_handedness /// Which foot the robot will be starting off standing on
+                                  Footprint stance_foot /// Foot we start from
+  );
+
+/**
+ * \fn turnInPlace
+ * \brief Generates a foot plan for turning in place to desired angle. It will
+ * always try to take the shortest way
+ */
+vector<Footprint> turnInPlace(
+                         double desired_angle, /// The desired angle
+                         double width, /// The desired angle
+                         double max_step_angle, /// The maximum HALF angle between successive steps
+                         Footprint from /// Where we start from. Note that this exact foot will be repeated in the output
+  );
+
+/**
+ * \fn walkCircle
+ * \brief Generates a foot plan for walking from A to B
+ */
+vector<Footprint> walkTo(
+    double width, /// The maximum HALF angle between successive steps
+    double max_step_length, /// The maximum HALF allowed length the robot may step
+    double max_step_angle, /// The maximum HALF angle between successive steps
+    Footprint from, /// Where we start from. Note that this exact foot will be repeated in the output
+    Footprint to /// Where we should end at. Note that this exact foot will be repeated in the output
   );
 
 #endif   /* ----- #ifndef FOOTPRINT_INC  ----- */
