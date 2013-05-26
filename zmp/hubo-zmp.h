@@ -59,6 +59,9 @@ typedef struct zmp_traj {
   walkTransition_t walkTransition;
 } zmp_traj_t;
 
+typedef struct zmp_conf {
+  bool received;
+} zmp_conf_t;
 /*
 typedef struct zmp_traj_element {
   uint64_t angles[HUBO_JOINT_COUNT];
@@ -83,6 +86,7 @@ typedef struct zmp_traj {
 */
 
 #define HUBO_CHAN_ZMP_TRAJ_NAME "hubo-zmp-traj"
+#define HUBO_CHAN_ZMP_WALKER_NAME "hubo-zmp-walker"
 
 #endif
 

@@ -18,6 +18,15 @@ To build the software, you will need these libraries:
   - eigen3
   - expat
   - qt4 (optional, but required for calibration GUI)
+  - cmake
+
+OPTION 1:
+
+In the hubomz top directory...
+
+    ./setup.sh
+
+OPTION 2:
 
 You must install cmake to build the software as well.  To build:
 

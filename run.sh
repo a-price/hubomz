@@ -2,6 +2,7 @@
 
 # Name of ach channel to send zmp trajectory over
 HUBO_ZMP_CHAN='hubo-zmp-traj'
+HUBO_ZMP_WALKER_CHAN='hubo-zmp-walker'
 
 # Opens the ach channel HUBO_ZMP_CHAN,
 # Start the achd daemon to push the zmp trajectory to HUBO
@@ -27,6 +28,7 @@ AchOpen()
 {
     echo 'Opening ach channel'
     sudo ach -1 -C $HUBO_ZMP_CHAN -m 3 -n 1000000 -o 666
+    sudo ach -1 -C $HUBO_ZMP_WALKER_CHAN -m 3 -n 1000000 -o 666
 }
 
 # Closes the HUBO_ZMP_CHAN channel
@@ -34,6 +36,7 @@ AchClose()
 {
     echo 'Closing ach channel'
     sudo ach -U $HUBO_ZMP_CHAN
+    sudo ach -U $HUBO_ZMP_WALKER_CHAN
 }
 
 AchRestart()
@@ -46,7 +49,8 @@ AchRestart()
 AchdStart()
 {
     echo 'Starting achd push'
-    sudo achd -r push 10.84.108.135 $HUBO_ZMP_CHAN
+    sudo achd -r push hubo-linux $HUBO_ZMP_CHAN
+    sudo achd -r pull hubo-linux $HUBO_ZMP_WALKER_CHAN
 }
 
 # Kills the achd daemon process

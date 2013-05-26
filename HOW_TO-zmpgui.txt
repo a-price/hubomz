@@ -1,0 +1,27 @@
+in the build directory...
+
+IN TERMINAL #1:
+
+    Open the ach channel
+        ../run.sh achrestart
+
+    Start the gui
+        ./zmpgui
+
+IN TERMINAL #2
+
+    Start the zmp-daemon
+        ./zmp-daemon ../myhubo.kinbody.xml
+
+    In the zmp-daemon program you can using the following walk commands
+        i: walk forward in a straight line
+        k: stop
+        m: walk backwards in a straight line
+        j: sidestep to the left
+        l: sidestep to the right
+        u: turn more to the left while walking forward or backwards
+        o: turn more to the right while walking forward or backwards
+
+    NOTE:
+        Before switching walk type, stop ('k') and let Hubo walk
+        to a stop before pressing the next command.

@@ -31,4 +31,4 @@ echo "Generating compilation files"
 cmake .. -DCMAKE_BUILD_TYPE=Release
 echo "Building zmp-daemon executable"
 make zmp-daemon
-
+make zmpgui

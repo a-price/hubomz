@@ -39,7 +39,9 @@ public:
   KinBody& kbody;
 
   ach_channel_t zmp_chan;
-  zmp_traj_t nextTrajectory, curTrajectory;
+  ach_channel_t zmp_walker_chan;
+  zmp_traj_t nextTrajectory, curTrajectory, stopTrajectory;
+  zmp_conf_t zmpConf;
   TrajVector curGuiTrajectory;
   bool nextTrajReady;
   bool useNextTraj;
@@ -70,8 +72,13 @@ public:
     cur_index(-1)
 
   {
+    // open ach channel to receive zmp trajectory information
     ach_status r = ach_open( &zmp_chan, HUBO_CHAN_ZMP_TRAJ_NAME, NULL );
-    fprintf(stdout, "AchOpen: %s \n", ach_result_to_string(r));
+    fprintf(stdout, "AchOpen Traj: %s \n", ach_result_to_string(r));
+
+    // open ach channel to send confirmation information
+    r = ach_open( &zmp_walker_chan, HUBO_CHAN_ZMP_WALKER_NAME, NULL );
+    fprintf(stdout, "AchOpen Walker: %s \n", ach_result_to_string(r));
 
     trajNumber = 0;
     checkForNewTraj();
@@ -123,12 +130,12 @@ public:
       for (int j=0; j<HUBO_JOINT_COUNT; j++) {   
         jointVel = (prevAngles[j] - newAngles[j])/dt;
         if (jointVel > jointVelTol) {
-          std::cerr << "change in joint " << jointNames[j] << " is larger than " << jointVelTol << "(" << jointVel << ")\n";
+//          std::cerr << "change in joint " << jointNames[j] << " is larger than " << jointVelTol << "(" << jointVel << ")\n";
           OK = false;
         }   
         if (jointVel > maxJointVel) maxJointVel = jointVel;
       }   
-      std::cerr << "maxJntVel: " << maxJointVel << std::endl;
+//      std::cerr << "maxJntVel: " << maxJointVel << std::endl;
       return OK; 
   }
 
@@ -152,19 +159,29 @@ public:
   virtual void checkForNewTraj()
   {
     size_t fs;
-    std::cout << "Getting new trajectory\n";
+//    std::cout << "Getting new trajectory\n";
     memset( &curTrajectory, 0, sizeof(curTrajectory) );
-    while((curTrajectory.count <= 0 || curTrajectory.walkState == STOP) && curTrajectory.trajNumber <= trajNumber)
+    while((curTrajectory.count <= 0 || curTrajectory.walkTransition != SWITCH_WALK) || curTrajectory.trajNumber <= trajNumber)
+    //while((curTrajectory.walkTransition != SWITCH_WALK && curTrajectory.walkTransition != WALK_TO_STOP))
     {
+     //FIXME  not right logic
       memset( &curTrajectory, 0, sizeof(curTrajectory) );
-      ach_status r = ach_get( &zmp_chan, &curTrajectory, sizeof(curTrajectory), &fs, NULL, ACH_O_LAST );
+      ach_get( &zmp_chan, &curTrajectory, sizeof(curTrajectory), &fs, NULL, ACH_O_LAST );
     }
-    std::cout << "Got Initial Traj # " << curTrajectory.trajNumber << std::endl;
+//    std::cout << "Got Initial Traj # " << curTrajectory.trajNumber << "\nConfirming receipt\n" << std::endl;
+
+    // send confirmation of receipt over ach to zmp-daemon
+//    zmpConf.received = true;
+//    ach_put( &zmp_walker_chan, &zmpConf, sizeof(zmpConf) );
+//    zmpConf.received = false;
+
     // convert new trajectory to gui trajectory
     convertToGuiTraj(curTrajectory, curGuiTrajectory);
     cur_index = 0;
     animating = true;
     nextTrajReady = false;
+//    ach_put( &zmp_walker_chan, &zmpConf, sizeof(zmpConf) );
+    trajNumber = curTrajectory.trajNumber;
   }
 
   virtual void checkForNextTraj()
@@ -177,8 +194,8 @@ public:
       ach_status r = ach_get( &zmp_chan, &nextTrajectory, sizeof(nextTrajectory), &fs, NULL, ACH_O_LAST );
       if((r == ACH_OK || r == ACH_MISSED_FRAME) && nextTrajectory.trajNumber > 0)
       {
-        fprintf(stdout, "AchGet: %s \n", ach_result_to_string(r));
-        std::cout << "Got trajectory # " << nextTrajectory.trajNumber << "\n";
+//        fprintf(stdout, "AchGet: %s \n", ach_result_to_string(r));
+//        std::cout << "Got trajectory # " << nextTrajectory.trajNumber << "\n";
       }
 
       if(nextTrajectory.walkTransition == WALK_TO_STOP)
@@ -190,40 +207,60 @@ public:
       // if we received a next trajectory
       if(nextTrajectory.trajNumber > curTrajectory.trajNumber)
       {
+        // tell zmp-daemon we got the latest traj
+/*        zmpConf.received = true;
+        ach_put( &zmp_walker_chan, &zmpConf, sizeof(zmpConf) );
+        zmpConf.received = false;
+        ach_put( &zmp_walker_chan, &zmpConf, sizeof(zmpConf) );
+*/
         // if start tick has been passed or switching walk type indicate it, otherwise indicate that we can use it
         if(cur_index > nextTrajectory.startTick || nextTrajectory.walkTransition == SWITCH_WALK)
         {
-          std::cout << "Won't use next traj " << nextTrajectory.trajNumber << "\n";
+//          std::cout << "Won't use next traj " << nextTrajectory.trajNumber << "\n";
           useNextTraj = false;
           nextTrajReady = true;
         }
         else
         {
-          std::cout << "Going to use next traj # " << nextTrajectory.trajNumber << "\n";
+//          std::cout << "Going to use next traj # " << nextTrajectory.trajNumber << "\n";
           useNextTraj = true;
           nextTrajReady = true;
         }
+        trajNumber = nextTrajectory.trajNumber;
       }
   }
 
   virtual void swapInTraj()
   {  
       bool OK;
-      std::cout << "validating\n";
+//      std::cout << "validating\n";
       OK = validateTrajSwapIn(nextTrajectory.traj[0].angles, curTrajectory.traj[cur_index].angles);
       if(OK == false)
       {
-        std::cout << "Not swapping in next trajectory. Finishing current trajectory\n";
+//        std::cout << "Not swapping in next trajectory. Finishing current trajectory\n";
         nextTrajReady = true;
       }
       else
       {
-        std::cout << "Swapping in next trajectory # " << nextTrajectory.trajNumber << ".\n";
+//        std::cout << "Swapping in next trajectory # " << nextTrajectory.trajNumber << ".\n";
         curTrajectory = nextTrajectory;
         convertToGuiTraj(curTrajectory, curGuiTrajectory);
         cur_index = 0;
         nextTrajReady = false;
       }
+  }
+
+  virtual void checkToStop()
+  {
+    // clear nextTrajectory contents
+    memset( &stopTrajectory, 0, sizeof(stopTrajectory) );
+    size_t fs;
+
+    // get from channel
+    ach_get( &zmp_chan, &stopTrajectory, sizeof(stopTrajectory), &fs, NULL, ACH_O_LAST );
+
+    if(stopTrajectory.walkTransition == WALK_TO_STOP)
+        useNextTraj = false;
   }
 
   // set state to initial trajectory tick joint values
@@ -275,6 +312,7 @@ public:
       cur_index += dd;
       if(nextTrajReady == false)
         checkForNextTraj();
+      checkToStop();
       if(useNextTraj == true && nextTrajectory.startTick == cur_index)
         swapInTraj();
       

@@ -302,12 +302,16 @@ int main(int argc, char** argv)
 
   // ach channel to send trajectory over
   ach_channel_t zmp_chan;
+  ach_channel_t zmp_walker_chan;
 
   if (use_ach)
   {
     std::cout << "Opening ach channel\n";
     ach_status r = ach_open( &zmp_chan, HUBO_CHAN_ZMP_TRAJ_NAME, NULL );
-    fprintf(stdout, "%s \n", ach_result_to_string(r));
+    fprintf(stdout, "Achopen traj: %s \n", ach_result_to_string(r));
+
+    r = ach_open( &zmp_walker_chan, HUBO_CHAN_ZMP_WALKER_NAME, NULL );
+    fprintf(stdout, "Achopen walker: %s \n", ach_result_to_string(r));
   }
 
   // the actual state
@@ -365,13 +369,12 @@ int main(int argc, char** argv)
 
   // variables
   bool ready = false;
-  bool printStopped = false;
   walkState_t walkState = STOP;
   walkTransition_t walkTransition = STAY_STILL;
   double startTick = 0;
   double curTrajStartTick = 0;
   zmp_traj_t trajectory;
-  bool fileClosed = false;
+  zmp_conf_t zmpConf;
   std::vector<ZMPReferenceContext> fullRefTraj;
   Footprint initFoot;
 
@@ -404,7 +407,7 @@ int main(int argc, char** argv)
                   if(prevKey != 'u' && prevKey != 'o')
                     startTick = 0;
                   else
-                    walkTransition == KEEP_WALKING;
+                    walkTransition = KEEP_WALKING;
                   prevKey = key;
                   break;
               case 'm':
@@ -419,7 +422,7 @@ int main(int argc, char** argv)
                   if(prevKey != 'u' && prevKey != 'o')
                     startTick = 0;
                   else
-                    walkTransition == KEEP_WALKING;
+                    walkTransition = KEEP_WALKING;
                   prevKey = key;
                   break;
               case 'j':
@@ -465,31 +468,31 @@ int main(int argc, char** argv)
           {
             case 'u':
               // turn more left
-              std::cout << "\nTURN LEFT\n";
               walk_type = walk_circle;
-              if(walk_circle_radius < -20)
-                walk_circle_radius = 1e13;
-              else if(walk_circle_radius > 20)
-                walk_circle_radius = 20;
-              walk_circle_radius -= 1;
+              if(walk_circle_radius < -10)
+                walk_circle_radius = 10;
+              else if(walk_circle_radius > 10)
+                walk_circle_radius = 10;
+              walk_circle_radius -= 1.5;
               if(walk_circle_radius < 1 && walk_circle_radius > -1)
                 walk_circle_radius = 1;
               circle_max_step_angle = M_PI/12;
               prevKey = 'u';
+              std::cout << "\nTURN LEFT MORE - radius = " << walk_circle_radius << "\n";
               break;
             case 'o':
               // turn more right
-              std::cout << "\nTURN RIGHT\n";
               walk_type = walk_circle;
-              if(walk_circle_radius > 20)
-                walk_circle_radius = -1e13;
-              else if(walk_circle_radius < -20)
-                walk_circle_radius = -20;
-              walk_circle_radius += 1;
+              if(walk_circle_radius > 10)
+                walk_circle_radius = -10;
+              else if(walk_circle_radius < -10)
+                walk_circle_radius = -10;
+              walk_circle_radius += 1.5;
               if(walk_circle_radius > -1 && walk_circle_radius < 1)
                 walk_circle_radius = -1;
               circle_max_step_angle = M_PI/12;
               prevKey = 'o';
+              std::cout << "\nTURN RIGHT MORE - radius = " << walk_circle_radius << "\n";
               break;
             default:
               break;
@@ -513,7 +516,6 @@ int main(int argc, char** argv)
           case WALKING_BACKWARD:
           case SIDESTEPPING_LEFT:
           case SIDESTEPPING_RIGHT:
-            std::cout << "keep walking\n";
             walkTransition = KEEP_WALKING;
             break;
           case STOP:
@@ -540,12 +542,11 @@ int main(int argc, char** argv)
     // ####################################
     // ####### GENERATE TRAJECTORY ########
     // ####################################
-    // generate new trajectory if KEEP_WALKING or START_WALKING
+    // generate new trajectory if KEEP_WALKING or SWITCH_WALK
     if( walkTransition == SWITCH_WALK || walkTransition == KEEP_WALKING )
     {
       if( curTrajNumber > 1 && walkTransition == SWITCH_WALK )
       {
-        //std::cout << "using lastInitContext\n";
         initContext = lastInitContext;
         if(walkState == SIDESTEPPING_LEFT)
         {
@@ -557,10 +558,10 @@ int main(int argc, char** argv)
         }
       }
       curTrajNumber++;
-      std::cout << "CURRENT TRAJECTORY #: " << curTrajNumber << "\n";
-      //std::cout << "\nLeft Foot x,y: " << initContext.feet[0].translation().x() << ", " << initContext.feet[0].translation().y()
-      //          << "\nRight Foot x,y: " << initContext.feet[1].translation().x() << ", " << initContext.feet[1].translation().y()
-      //          << std::endl;
+//      std::cout << "CURRENT TRAJECTORY #: " << curTrajNumber << "\n";
+//      std::cout << "\nLeft Foot x,y: " << initContext.feet[0].translation().x() << ", " << initContext.feet[0].translation().y()
+//                << "\nRight Foot x,y: " << initContext.feet[1].translation().x() << ", " << initContext.feet[1].translation().y()
+//                << std::endl;
       // apply COM IK for init context
       walker.applyComIK(initContext);
 
@@ -585,7 +586,6 @@ int main(int argc, char** argv)
       {
         case walk_circle:
         {
-          std::cout << "Walk Radius: " << walk_circle_radius << "\n";
           int sign = walkState == WALKING_BACKWARD ? -1 : 1; 
           footprints = walkCircle(walk_circle_radius,
                                   sign*walk_dist,
@@ -644,7 +644,7 @@ int main(int argc, char** argv)
             startTick = walker.getStartTick();
           }
         }
-        else
+        else // if sidestepping
         {
           if( footprintIndex == footprints.size() - 1)
           {
@@ -690,38 +690,22 @@ int main(int argc, char** argv)
 
         // put each 
         for(int i=0; i<N; i++)
-        {
           memcpy( &(trajectory.traj[i]), &(walker.traj[i]), sizeof(zmp_traj_element_t) );
-/*          if(i < startTick && curTrajNumber < 6 && fileClosed == false)
-          //if(curTrajNumber == 1 && fileClosed == false)
-          {
-            //fprintf(jointsFile, "%llu, %llu, %llu, %llu, %llu, %llu\n", trajectory.traj[i].angles[RHY],
-            fprintf(jointsFile, "%f, %f, %f, %f, %f, %f\n", trajectory.traj[i].angles[RHY],
-                                                            trajectory.traj[i].angles[RHR],
-                                                            trajectory.traj[i].angles[RHP],
-                                                            trajectory.traj[i].angles[RKN],
-                                                            trajectory.traj[i].angles[RAP],
-                                                            trajectory.traj[i].angles[RAR]);
-            fprintf(comFile, "%f, %f, %f, %f, %f, %f, %f, %f\n", fullRefTraj.at(i).comX(0),
-                                                                     fullRefTraj.at(i).comX(1),
-                                                                     fullRefTraj.at(i).comX(2),
-                                                                     fullRefTraj.at(i).comY(0),
-                                                                     fullRefTraj.at(i).comY(1),
-                                                                     fullRefTraj.at(i).comY(2),
-                                                                     fullRefTraj.at(i).feet[0].translation().z(),
-                                                                     fullRefTraj.at(i).feet[1].translation().z());
-          }*/
-        }
-        ach_status r = ach_put( &zmp_chan, &trajectory, sizeof(trajectory) );
-        //fprintf(stdout, "%s \n", ach_result_to_string(r));
-        //fprintf(stdout, "Message put\n");
+
+        ach_put( &zmp_chan, &trajectory, sizeof(trajectory) );
+
+        // if walking from stop or switching walk type,
+        // keep checking for confirmation of receipt
+//        size_t fs;
+//        zmpConf.received = false;
+//        while(zmpConf.received != true)
+//        {
+//            memset( &zmpConf, 0, sizeof(zmpConf) );
+//            ach_get( &zmp_walker_chan, &zmpConf, sizeof(zmpConf), &fs, NULL, ACH_O_LAST );
+//        }
+//        std::cout << "--------after conf receieved: " << zmpConf.received << std::endl;
+//       zmpConf.received = false;
       }
-//      if(curTrajNumber == 6 && fileClosed == false)
-//      {
-//        fclose(jointsFile);
-//        fclose(comFile);
-//        fileClosed = true;
-//      }
     }
   }
   tty_reset(STDIN_FILENO);
